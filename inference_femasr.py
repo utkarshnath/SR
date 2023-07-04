@@ -28,7 +28,8 @@ def main():
     parser.add_argument('--max_size', type=int, default=600, help='Max image size for whole image inference, otherwise use tiled_test')
     args = parser.parse_args()
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(device) 
 
     if args.weight is None:
         weight_path = load_file_from_url(pretrain_model_url[f'x{args.out_scale}'])
