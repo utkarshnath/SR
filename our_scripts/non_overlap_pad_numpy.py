@@ -34,8 +34,7 @@ def extract_sub_images(img, width, height):
             sub_img_array = img_array[i*height:(i+1)*height, j*width:(j+1)*width]
             
             # If the majority of pixels in the sub-image are non-padding, add to sub-images list
-            if np.count_nonzero(sub_img_array) > width * height / 2:
-                sub_images.append(Image.fromarray(sub_img_array))
+            sub_images.append(Image.fromarray(sub_img_array))
 
     return sub_images
 
