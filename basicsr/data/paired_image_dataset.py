@@ -54,7 +54,7 @@ class PairedImageDataset(data.Dataset):
         self.io_backend_opt = opt['io_backend']
 
         self.gt_folder, self.lq_folder = opt['dataroot_gt'], opt['dataroot_lq']
-                
+               
         self.lq_paths = make_dataset(self.lq_folder)
         self.gt_paths = make_dataset(self.gt_folder)
 

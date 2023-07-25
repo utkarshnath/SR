@@ -1,0 +1,834 @@
+ERROR: Unable to locate a modulefile for 'cuda/11.7.0'
+ERROR: Unable to locate a modulefile for 'cudnn/8.1.0'
+[W socket.cpp:426] [c10d] The server socket cannot be initialized on [::]:29500 (errno: 97 - Address family not supported by protocol).
+[W socket.cpp:601] [c10d] The client socket cannot be initialized to connect to [localhost]:29500 (errno: 97 - Address family not supported by protocol).
+[W socket.cpp:601] [c10d] The client socket cannot be initialized to connect to [localhost]:29500 (errno: 97 - Address family not supported by protocol).
+[W socket.cpp:601] [c10d] The client socket cannot be initialized to connect to [localhost]:29500 (errno: 97 - Address family not supported by protocol).
+[W socket.cpp:601] [c10d] The client socket cannot be initialized to connect to [localhost]:29500 (errno: 97 - Address family not supported by protocol).
+2023-07-25 10:49:31,266 INFO: 
+Version Information: 
+	PyTorch: 2.0.1+cu117
+	TorchVision: 0.15.2+cu117
+2023-07-25 10:49:31,267 INFO: 
+  name: 016_FeMaSR_LQ_stage
+  model_type: FeMaSRModel
+  scale: 4
+  num_gpu: 2
+  manual_seed: 0
+  datasets:[
+    train:[
+      name: General_Image_Train
+      type: PairedImageDataset
+      dataroot_gt: /scratch/vgunda8/FeMaSR_Datasets/HR_training_dataset
+      dataroot_lq: /scratch/vgunda8/FeMaSR_Datasets/LR_training_dataset_sf4
+      io_backend:[
+        type: disk
+      ]
+      gt_size: 256
+      use_resize_crop: True
+      use_flip: True
+      use_rot: True
+      use_shuffle: True
+      batch_size_per_gpu: 8
+      num_worker_per_gpu: 8
+      dataset_enlarge_ratio: 1
+      prefetch_mode: cpu
+      num_prefetch_queue: 8
+      phase: train
+      scale: 4
+    ]
+    val:[
+      name: General_Image_Valid
+      type: PairedImageDataset
+      dataroot_gt: /scratch/vgunda8/sr_dataset/valid_div2k/HR/DIV2K_valid_HR
+      dataroot_lq: /scratch/vgunda8/sr_dataset/valid_div2k/LR/DIV2K_val_x4
+      io_backend:[
+        type: disk
+      ]
+      phase: val
+      scale: 4
+    ]
+  ]
+  network_g:[
+    type: FeMaSRNet
+    gt_resolution: 256
+    norm_type: gn
+    act_type: silu
+    scale_factor: 4
+    codebook_params: [[32, 1024, 512]]
+    LQ_stage: True
+    frozen_module_keywords: ['quantize', 'decoder', 'after_quant_group', 'out_conv']
+  ]
+  network_d:[
+    type: UNetDiscriminatorSN
+    num_in_ch: 3
+  ]
+  path:[
+    pretrain_network_hq: /scratch/vgunda8/FeMaSR/stage1/experiments/008_FeMaSR_HQ_stage/models/net_g_best_.pth
+    pretrain_network_g: None
+    pretrain_network_d: https://github.com/chaofengc/FeMaSR/releases/download/v0.1-pretrain_models/FeMaSR_HRP_model_d.pth
+    strict_load: False
+    experiments_root: /scratch/vgunda8/FeMaSR/stage2/experiments/016_FeMaSR_LQ_stage
+    models: /scratch/vgunda8/FeMaSR/stage2/experiments/016_FeMaSR_LQ_stage/models
+    training_states: /scratch/vgunda8/FeMaSR/stage2/experiments/016_FeMaSR_LQ_stage/training_states
+    log: /scratch/vgunda8/FeMaSR/stage2/experiments/016_FeMaSR_LQ_stage
+    visualization: /scratch/vgunda8/FeMaSR/stage2/experiments/016_FeMaSR_LQ_stage/visualization
+  ]
+  train:[
+    optim_g:[
+      type: Adam
+      lr: 0.0001
+      weight_decay: 0
+      betas: [0.9, 0.99]
+    ]
+    optim_d:[
+      type: Adam
+      lr: 0.0004
+      weight_decay: 0
+      betas: [0.9, 0.99]
+    ]
+    scheduler:[
+      type: MultiStepLR
+      milestones: [50000, 100000, 150000, 200000, 250000, 300000, 350000]
+      gamma: 1
+    ]
+    total_iter: 200000
+    warmup_iter: -1
+    pixel_opt:[
+      type: L1Loss
+      loss_weight: 1.0
+      reduction: mean
+    ]
+    perceptual_opt:[
+      type: LPIPSLoss
+      loss_weight: 1.0
+    ]
+    gan_opt:[
+      type: GANLoss
+      gan_type: hinge
+      real_label_val: 1.0
+      fake_label_val: 0.0
+      loss_weight: 0.1
+    ]
+    codebook_opt:[
+      loss_weight: 1.0
+    ]
+    semantic_opt:[
+      loss_weight: 0.1
+    ]
+    net_d_iters: 1
+    net_d_init_iters: 0.0
+  ]
+  val:[
+    val_freq: 5000.0
+    save_img: True
+    key_metric: lpips
+    metrics:[
+      psnr:[
+        type: psnr
+        crop_border: 4
+        test_y_channel: True
+      ]
+      ssim:[
+        type: ssim
+        crop_border: 4
+        test_y_channel: True
+      ]
+      lpips:[
+        type: lpips
+        better: lower
+      ]
+    ]
+  ]
+  logger:[
+    print_freq: 100
+    save_checkpoint_freq: 1000000000.0
+    save_latest_freq: 5000.0
+    show_tf_imgs_freq: 1000.0
+    use_tb_logger: True
+  ]
+  dist_params:[
+    backend: nccl
+    port: 16500
+  ]
+  find_unused_parameters: True
+  dist: True
+  rank: 0
+  world_size: 1
+  auto_resume: False
+  is_train: True
+  root_path: /scratch/vgunda8/FeMaSR/stage2
+
+2023-07-25 10:49:34,778 INFO: Dataset [PairedImageDataset] - General_Image_Train is built.
+2023-07-25 10:49:34,779 INFO: Use cpu prefetch dataloader: num_prefetch_queue = 8
+/home/vgunda8/anaconda3/envs/femasr/lib/python3.8/site-packages/torch/utils/data/dataloader.py:560: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 2, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+2023-07-25 10:49:34,782 INFO: Training statistics:
+	Number of train images: 136750
+	Dataset enlarge ratio: 1
+	Batch size per gpu: 8
+	World size (gpu number): 1
+	Require iter number per epoch: 17094
+	Total epochs: 12; iters: 200000.
+2023-07-25 10:49:34,785 INFO: Dataset [PairedImageDataset] - General_Image_Valid is built.
+2023-07-25 10:49:34,785 INFO: Number of val images/folders in General_Image_Valid: 100
+/home/vgunda8/anaconda3/envs/femasr/lib/python3.8/site-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+2023-07-25 10:49:34,999 INFO: Network [FeMaSRNet] is created.
+/home/vgunda8/anaconda3/envs/femasr/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/home/vgunda8/anaconda3/envs/femasr/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=AlexNet_Weights.IMAGENET1K_V1`. You can also use `weights=AlexNet_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+2023-07-25 10:49:44,110 INFO: Network [FeMaSRNet] is created.
+2023-07-25 10:49:46,440 INFO: Loading FeMaSRNet model from /scratch/vgunda8/FeMaSR/stage1/experiments/008_FeMaSR_HQ_stage/models/net_g_best_.pth, with param key: [params].
+2023-07-25 10:49:46,459 WARNING: Current net - loaded net:
+2023-07-25 10:49:46,459 WARNING: Loaded net - current net:
+2023-07-25 10:49:46,459 WARNING:   conv_semantic.0.bias
+2023-07-25 10:49:46,459 WARNING:   conv_semantic.0.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.mean
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.std
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv1_1.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv1_1.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv1_2.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv1_2.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv2_1.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv2_1.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv2_2.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv2_2.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv3_1.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv3_1.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv3_2.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv3_2.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv3_3.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv3_3.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv3_4.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv3_4.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv4_1.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv4_1.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv4_2.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv4_2.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv4_3.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv4_3.weight
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv4_4.bias
+2023-07-25 10:49:46,459 WARNING:   vgg_feat_extractor.vgg_net.conv4_4.weight
+2023-07-25 10:49:46,661 INFO: Loading FeMaSRNet model from /scratch/vgunda8/FeMaSR/stage1/experiments/008_FeMaSR_HQ_stage/models/net_g_best_.pth, with param key: [params].
+2023-07-25 10:49:46,681 WARNING: Current net - loaded net:
+2023-07-25 10:49:46,681 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.conv.bias
+2023-07-25 10:49:46,681 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.conv.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.attn.proj.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.attn.proj.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.attn.qkv.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.attn.qkv.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.attn.relative_position_bias_table
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.attn.relative_position_index
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.mlp.fc1.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.mlp.fc1.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.mlp.fc2.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.mlp.fc2.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.norm1.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.norm1.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.norm2.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.0.norm2.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.attn.proj.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.attn.proj.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.attn.qkv.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.attn.qkv.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.attn.relative_position_bias_table
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.attn.relative_position_index
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.attn_mask
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.mlp.fc1.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.mlp.fc1.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.mlp.fc2.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.mlp.fc2.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.norm1.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.norm1.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.norm2.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.1.norm2.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.attn.proj.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.attn.proj.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.attn.qkv.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.attn.qkv.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.attn.relative_position_bias_table
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.attn.relative_position_index
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.mlp.fc1.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.mlp.fc1.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.mlp.fc2.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.mlp.fc2.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.norm1.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.norm1.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.norm2.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.2.norm2.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.attn.proj.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.attn.proj.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.attn.qkv.bias
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.attn.qkv.weight
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.attn.relative_position_bias_table
+2023-07-25 10:49:46,682 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.attn.relative_position_index
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.attn_mask
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.mlp.fc1.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.mlp.fc1.weight
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.mlp.fc2.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.mlp.fc2.weight
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.norm1.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.norm1.weight
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.norm2.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.3.norm2.weight
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.attn.proj.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.attn.proj.weight
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.attn.qkv.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.attn.qkv.weight
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.attn.relative_position_bias_table
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.attn.relative_position_index
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.mlp.fc1.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.mlp.fc1.weight
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.mlp.fc2.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.mlp.fc2.weight
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.norm1.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.norm1.weight
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.norm2.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.4.norm2.weight
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.attn.proj.bias
+2023-07-25 10:49:46,683 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.attn.proj.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.attn.qkv.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.attn.qkv.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.attn.relative_position_bias_table
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.attn.relative_position_index
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.attn_mask
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.mlp.fc1.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.mlp.fc1.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.mlp.fc2.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.mlp.fc2.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.norm1.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.norm1.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.norm2.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.0.residual_group.blocks.5.norm2.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.conv.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.conv.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.attn.proj.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.attn.proj.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.attn.qkv.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.attn.qkv.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.attn.relative_position_bias_table
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.attn.relative_position_index
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.mlp.fc1.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.mlp.fc1.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.mlp.fc2.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.mlp.fc2.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.norm1.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.norm1.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.norm2.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.0.norm2.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.attn.proj.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.attn.proj.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.attn.qkv.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.attn.qkv.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.attn.relative_position_bias_table
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.attn.relative_position_index
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.attn_mask
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.mlp.fc1.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.mlp.fc1.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.mlp.fc2.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.mlp.fc2.weight
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.norm1.bias
+2023-07-25 10:49:46,685 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.norm1.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.norm2.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.1.norm2.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.attn.proj.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.attn.proj.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.attn.qkv.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.attn.qkv.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.attn.relative_position_bias_table
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.attn.relative_position_index
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.mlp.fc1.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.mlp.fc1.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.mlp.fc2.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.mlp.fc2.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.norm1.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.norm1.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.norm2.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.2.norm2.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.attn.proj.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.attn.proj.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.attn.qkv.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.attn.qkv.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.attn.relative_position_bias_table
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.attn.relative_position_index
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.attn_mask
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.mlp.fc1.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.mlp.fc1.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.mlp.fc2.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.mlp.fc2.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.norm1.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.norm1.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.norm2.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.3.norm2.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.attn.proj.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.attn.proj.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.attn.qkv.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.attn.qkv.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.attn.relative_position_bias_table
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.attn.relative_position_index
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.mlp.fc1.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.mlp.fc1.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.mlp.fc2.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.mlp.fc2.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.norm1.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.norm1.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.norm2.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.4.norm2.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.attn.proj.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.attn.proj.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.attn.qkv.bias
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.attn.qkv.weight
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.attn.relative_position_bias_table
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.attn.relative_position_index
+2023-07-25 10:49:46,686 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.attn_mask
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.mlp.fc1.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.mlp.fc1.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.mlp.fc2.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.mlp.fc2.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.norm1.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.norm1.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.norm2.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.1.residual_group.blocks.5.norm2.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.conv.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.conv.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.attn.proj.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.attn.proj.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.attn.qkv.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.attn.qkv.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.attn.relative_position_bias_table
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.attn.relative_position_index
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.mlp.fc1.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.mlp.fc1.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.mlp.fc2.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.mlp.fc2.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.norm1.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.norm1.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.norm2.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.0.norm2.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.attn.proj.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.attn.proj.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.attn.qkv.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.attn.qkv.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.attn.relative_position_bias_table
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.attn.relative_position_index
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.attn_mask
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.mlp.fc1.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.mlp.fc1.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.mlp.fc2.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.mlp.fc2.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.norm1.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.norm1.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.norm2.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.1.norm2.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.attn.proj.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.attn.proj.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.attn.qkv.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.attn.qkv.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.attn.relative_position_bias_table
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.attn.relative_position_index
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.mlp.fc1.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.mlp.fc1.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.mlp.fc2.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.mlp.fc2.weight
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.norm1.bias
+2023-07-25 10:49:46,687 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.norm1.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.norm2.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.2.norm2.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.attn.proj.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.attn.proj.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.attn.qkv.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.attn.qkv.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.attn.relative_position_bias_table
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.attn.relative_position_index
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.attn_mask
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.mlp.fc1.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.mlp.fc1.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.mlp.fc2.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.mlp.fc2.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.norm1.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.norm1.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.norm2.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.3.norm2.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.attn.proj.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.attn.proj.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.attn.qkv.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.attn.qkv.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.attn.relative_position_bias_table
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.attn.relative_position_index
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.mlp.fc1.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.mlp.fc1.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.mlp.fc2.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.mlp.fc2.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.norm1.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.norm1.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.norm2.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.4.norm2.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.attn.proj.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.attn.proj.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.attn.qkv.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.attn.qkv.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.attn.relative_position_bias_table
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.attn.relative_position_index
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.attn_mask
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.mlp.fc1.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.mlp.fc1.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.mlp.fc2.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.mlp.fc2.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.norm1.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.norm1.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.norm2.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.2.residual_group.blocks.5.norm2.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.conv.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.conv.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.attn.proj.bias
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.attn.proj.weight
+2023-07-25 10:49:46,688 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.attn.qkv.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.attn.qkv.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.attn.relative_position_bias_table
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.attn.relative_position_index
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.mlp.fc1.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.mlp.fc1.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.mlp.fc2.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.mlp.fc2.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.norm1.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.norm1.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.norm2.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.0.norm2.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.attn.proj.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.attn.proj.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.attn.qkv.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.attn.qkv.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.attn.relative_position_bias_table
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.attn.relative_position_index
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.attn_mask
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.mlp.fc1.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.mlp.fc1.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.mlp.fc2.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.mlp.fc2.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.norm1.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.norm1.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.norm2.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.1.norm2.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.attn.proj.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.attn.proj.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.attn.qkv.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.attn.qkv.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.attn.relative_position_bias_table
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.attn.relative_position_index
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.mlp.fc1.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.mlp.fc1.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.mlp.fc2.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.mlp.fc2.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.norm1.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.norm1.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.norm2.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.2.norm2.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.attn.proj.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.attn.proj.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.attn.qkv.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.attn.qkv.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.attn.relative_position_bias_table
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.attn.relative_position_index
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.attn_mask
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.mlp.fc1.bias
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.mlp.fc1.weight
+2023-07-25 10:49:46,689 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.mlp.fc2.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.mlp.fc2.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.norm1.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.norm1.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.norm2.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.3.norm2.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.attn.proj.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.attn.proj.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.attn.qkv.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.attn.qkv.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.attn.relative_position_bias_table
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.attn.relative_position_index
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.mlp.fc1.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.mlp.fc1.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.mlp.fc2.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.mlp.fc2.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.norm1.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.norm1.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.norm2.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.4.norm2.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.attn.proj.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.attn.proj.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.attn.qkv.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.attn.qkv.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.attn.relative_position_bias_table
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.attn.relative_position_index
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.attn_mask
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.mlp.fc1.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.mlp.fc1.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.mlp.fc2.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.mlp.fc2.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.norm1.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.norm1.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.norm2.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.1.swin_blks.3.residual_group.blocks.5.norm2.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.2.1.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.2.1.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.2.3.conv.0.norm.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.2.3.conv.0.norm.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.2.3.conv.2.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.2.3.conv.2.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.2.3.conv.3.norm.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.2.3.conv.3.norm.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.2.3.conv.5.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.2.3.conv.5.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.3.1.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.3.1.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.3.2.conv.0.norm.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.3.2.conv.0.norm.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.3.2.conv.2.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.3.2.conv.2.weight
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.3.2.conv.3.norm.bias
+2023-07-25 10:49:46,690 WARNING:   multiscale_encoder.blocks.3.2.conv.3.norm.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.3.2.conv.5.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.3.2.conv.5.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.3.3.conv.0.norm.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.3.3.conv.0.norm.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.3.3.conv.2.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.3.3.conv.2.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.3.3.conv.3.norm.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.3.3.conv.3.norm.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.3.3.conv.5.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.3.3.conv.5.weight
+2023-07-25 10:49:46,691 WARNING: Loaded net - current net:
+2023-07-25 10:49:46,691 WARNING:   conv_semantic.0.bias
+2023-07-25 10:49:46,691 WARNING:   conv_semantic.0.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.0.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.0.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.1.conv.0.norm.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.1.conv.0.norm.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.1.conv.2.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.1.conv.2.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.1.conv.3.norm.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.1.conv.3.norm.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.1.conv.5.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.1.conv.5.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.2.conv.0.norm.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.2.conv.0.norm.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.2.conv.2.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.2.conv.2.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.2.conv.3.norm.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.2.conv.3.norm.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.2.conv.5.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.1.2.conv.5.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.2.0.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.2.0.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.2.1.conv.0.norm.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.2.1.conv.0.norm.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.2.1.conv.2.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.2.1.conv.2.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.2.1.conv.3.norm.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.2.1.conv.3.norm.weight
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.2.1.conv.5.bias
+2023-07-25 10:49:46,691 WARNING:   multiscale_encoder.blocks.2.1.conv.5.weight
+2023-07-25 10:49:46,691 WARNING:   vgg_feat_extractor.mean
+2023-07-25 10:49:46,691 WARNING:   vgg_feat_extractor.std
+2023-07-25 10:49:46,691 WARNING:   vgg_feat_extractor.vgg_net.conv1_1.bias
+2023-07-25 10:49:46,691 WARNING:   vgg_feat_extractor.vgg_net.conv1_1.weight
+2023-07-25 10:49:46,691 WARNING:   vgg_feat_extractor.vgg_net.conv1_2.bias
+2023-07-25 10:49:46,691 WARNING:   vgg_feat_extractor.vgg_net.conv1_2.weight
+2023-07-25 10:49:46,691 WARNING:   vgg_feat_extractor.vgg_net.conv2_1.bias
+2023-07-25 10:49:46,691 WARNING:   vgg_feat_extractor.vgg_net.conv2_1.weight
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv2_2.bias
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv2_2.weight
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv3_1.bias
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv3_1.weight
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv3_2.bias
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv3_2.weight
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv3_3.bias
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv3_3.weight
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv3_4.bias
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv3_4.weight
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv4_1.bias
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv4_1.weight
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv4_2.bias
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv4_2.weight
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv4_3.bias
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv4_3.weight
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv4_4.bias
+2023-07-25 10:49:46,692 WARNING:   vgg_feat_extractor.vgg_net.conv4_4.weight
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.2.conv.0.norm.weight]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.2.conv.2.bias]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.in_conv.bias]: crt_net: torch.Size([256]); load_net: torch.Size([64])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.0.weight]: crt_net: torch.Size([256, 256, 3, 3]); load_net: torch.Size([128, 64, 3, 3])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.1.conv.0.norm.bias]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.2.conv.5.bias]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.1.conv.3.norm.bias]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.1.conv.3.norm.weight]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.1.conv.0.norm.weight]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.1.conv.2.weight]: crt_net: torch.Size([256, 256, 3, 3]); load_net: torch.Size([128, 128, 3, 3])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.2.conv.5.weight]: crt_net: torch.Size([256, 256, 3, 3]); load_net: torch.Size([128, 128, 3, 3])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.2.conv.3.norm.weight]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.2.conv.3.norm.bias]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.0.bias]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.in_conv.weight]: crt_net: torch.Size([256, 3, 4, 4]); load_net: torch.Size([64, 3, 4, 4])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.1.conv.2.bias]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.1.conv.5.weight]: crt_net: torch.Size([256, 256, 3, 3]); load_net: torch.Size([128, 128, 3, 3])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.1.conv.5.bias]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.2.conv.0.norm.bias]: crt_net: torch.Size([256]); load_net: torch.Size([128])
+2023-07-25 10:49:46,692 WARNING: Size different, ignore [multiscale_encoder.blocks.0.2.conv.2.weight]: crt_net: torch.Size([256, 256, 3, 3]); load_net: torch.Size([128, 128, 3, 3])
+2023-07-25 10:49:46,725 INFO: Network [UNetDiscriminatorSN] is created.
+2023-07-25 10:49:46,729 INFO: Loading net_d from https://github.com/chaofengc/FeMaSR/releases/download/v0.1-pretrain_models/FeMaSR_HRP_model_d.pth
+  0%|          | 0.00/16.8M [00:00<?, ?B/s] 12%|█▏        | 2.01M/16.8M [00:00<00:00, 18.8MB/s] 24%|██▍       | 4.05M/16.8M [00:00<00:00, 14.3MB/s] 63%|██████▎   | 10.5M/16.8M [00:00<00:00, 33.5MB/s] 97%|█████████▋| 16.3M/16.8M [00:00<00:00, 41.2MB/s]100%|██████████| 16.8M/16.8M [00:00<00:00, 35.0MB/s]
+2023-07-25 10:49:47,888 INFO: Loading UNetDiscriminatorSN model from /scratch/vgunda8/FeMaSR/stage2/experiments/pretrained_models/FeMaSR_HRP_model_d.pth, with param key: [params].
+2023-07-25 10:49:47,894 INFO: Loss [L1Loss] is created.
+/home/vgunda8/anaconda3/envs/femasr/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+2023-07-25 10:49:50,510 INFO: Loss [LPIPSLoss] is created.
+2023-07-25 10:49:50,513 INFO: Loss [GANLoss] is created.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.1.weight will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.1.bias will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.2.conv.0.norm.weight will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.2.conv.0.norm.bias will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.2.conv.2.weight will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.2.conv.2.bias will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.2.conv.3.norm.weight will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.2.conv.3.norm.bias will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.2.conv.5.weight will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.2.conv.5.bias will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.3.conv.0.norm.weight will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.3.conv.0.norm.bias will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.3.conv.2.weight will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.3.conv.2.bias will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.3.conv.3.norm.weight will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.3.conv.3.norm.bias will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.3.conv.5.weight will not be optimized.
+2023-07-25 10:49:50,514 WARNING: Params module.decoder_group.0.block.3.conv.5.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.1.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.1.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.2.conv.0.norm.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.2.conv.0.norm.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.2.conv.2.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.2.conv.2.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.2.conv.3.norm.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.2.conv.3.norm.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.2.conv.5.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.2.conv.5.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.3.conv.0.norm.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.3.conv.0.norm.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.3.conv.2.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.3.conv.2.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.3.conv.3.norm.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.3.conv.3.norm.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.3.conv.5.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.1.block.3.conv.5.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.1.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.1.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.2.conv.0.norm.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.2.conv.0.norm.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.2.conv.2.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.2.conv.2.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.2.conv.3.norm.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.2.conv.3.norm.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.2.conv.5.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.2.conv.5.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.3.conv.0.norm.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.3.conv.0.norm.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.3.conv.2.weight will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.3.conv.2.bias will not be optimized.
+2023-07-25 10:49:50,515 WARNING: Params module.decoder_group.2.block.3.conv.3.norm.weight will not be optimized.
+2023-07-25 10:49:50,516 WARNING: Params module.decoder_group.2.block.3.conv.3.norm.bias will not be optimized.
+2023-07-25 10:49:50,516 WARNING: Params module.decoder_group.2.block.3.conv.5.weight will not be optimized.
+2023-07-25 10:49:50,516 WARNING: Params module.decoder_group.2.block.3.conv.5.bias will not be optimized.
+2023-07-25 10:49:50,516 WARNING: Params module.out_conv.weight will not be optimized.
+2023-07-25 10:49:50,516 WARNING: Params module.out_conv.bias will not be optimized.
+2023-07-25 10:49:50,516 WARNING: Params module.quantize_group.0.embedding.weight will not be optimized.
+2023-07-25 10:49:50,516 WARNING: Params module.after_quant_group.0.conv.weight will not be optimized.
+2023-07-25 10:49:50,516 WARNING: Params module.after_quant_group.0.conv.bias will not be optimized.
+2023-07-25 10:49:50,568 INFO: Model [FeMaSRModel] is created.
+2023-07-25 10:50:07,640 INFO: Start training from epoch: 0, iter: 0
+[W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+2023-07-25 10:51:11,589 INFO: [016_F..][epoch:  0, iter:     100, lr:(1.000e-04,4.000e-04,)] [eta: 18:29:26, time (data): 0.639 (0.182)] l_codebook: 4.0114e-01 l_semantic: 0.0000e+00 l_pix: 1.3679e-01 l_percep: 6.6758e-01 l_g_gan: -8.0551e-03 l_d_real: 1.0407e+00 out_d_real: 3.2126e-03 l_d_fake: 1.0892e+00 out_d_fake: 8.0561e-02 
+2023-07-25 10:51:45,404 INFO: [016_F..][epoch:  0, iter:     200, lr:(1.000e-04,4.000e-04,)] [eta: 18:37:25, time (data): 0.489 (0.092)] l_codebook: 3.0163e-01 l_semantic: 0.0000e+00 l_pix: 9.0139e-02 l_percep: 5.7726e-01 l_g_gan: 3.8277e-02 l_d_real: 1.3120e+00 out_d_real: -2.9305e-01 l_d_fake: 6.1771e-01 out_d_fake: -3.8277e-01 
+2023-07-25 10:52:19,297 INFO: [016_F..][epoch:  0, iter:     300, lr:(1.000e-04,4.000e-04,)] [eta: 18:40:35, time (data): 0.339 (0.001)] l_codebook: 2.4375e-01 l_semantic: 0.0000e+00 l_pix: 9.3727e-02 l_percep: 6.0162e-01 l_g_gan: 3.8108e-03 l_d_real: 1.2966e+00 out_d_real: -2.8998e-01 l_d_fake: 9.6191e-01 out_d_fake: -3.8105e-02 
+2023-07-25 10:52:53,252 INFO: [016_F..][epoch:  0, iter:     400, lr:(1.000e-04,4.000e-04,)] [eta: 18:42:24, time (data): 0.339 (0.001)] l_codebook: 2.5755e-01 l_semantic: 0.0000e+00 l_pix: 1.0198e-01 l_percep: 5.6795e-01 l_g_gan: 7.6118e-03 l_d_real: 1.2768e+00 out_d_real: -2.7215e-01 l_d_fake: 9.2509e-01 out_d_fake: -7.6120e-02 
+2023-07-25 10:53:27,168 INFO: [016_F..][epoch:  0, iter:     500, lr:(1.000e-04,4.000e-04,)] [eta: 18:43:00, time (data): 0.339 (0.001)] l_codebook: 2.9619e-01 l_semantic: 0.0000e+00 l_pix: 8.2323e-02 l_percep: 6.0236e-01 l_g_gan: 4.0736e-02 l_d_real: 1.0855e+00 out_d_real: -7.6330e-02 l_d_fake: 5.9408e-01 out_d_fake: -4.0736e-01 
+2023-07-25 10:54:01,005 INFO: [016_F..][epoch:  0, iter:     600, lr:(1.000e-04,4.000e-04,)] [eta: 18:42:47, time (data): 0.339 (0.001)] l_codebook: 2.3820e-01 l_semantic: 0.0000e+00 l_pix: 8.9057e-02 l_percep: 5.5362e-01 l_g_gan: 2.2475e-02 l_d_real: 1.2703e+00 out_d_real: -2.6835e-01 l_d_fake: 7.7529e-01 out_d_fake: -2.2475e-01 
+2023-07-25 10:54:34,850 INFO: [016_F..][epoch:  0, iter:     700, lr:(1.000e-04,4.000e-04,)] [eta: 18:42:30, time (data): 0.338 (0.001)] l_codebook: 2.2687e-01 l_semantic: 0.0000e+00 l_pix: 9.6424e-02 l_percep: 5.3364e-01 l_g_gan: 4.9283e-02 l_d_real: 1.2845e+00 out_d_real: -2.7225e-01 l_d_fake: 5.1184e-01 out_d_fake: -4.9282e-01 
+2023-07-25 10:55:08,754 INFO: [016_F..][epoch:  0, iter:     800, lr:(1.000e-04,4.000e-04,)] [eta: 18:42:24, time (data): 0.339 (0.001)] l_codebook: 2.3990e-01 l_semantic: 0.0000e+00 l_pix: 8.4807e-02 l_percep: 5.5610e-01 l_g_gan: 2.1088e-02 l_d_real: 1.0483e+00 out_d_real: -4.6276e-02 l_d_fake: 7.8914e-01 out_d_fake: -2.1088e-01 
+2023-07-25 10:55:42,610 INFO: [016_F..][epoch:  0, iter:     900, lr:(1.000e-04,4.000e-04,)] [eta: 18:42:01, time (data): 0.338 (0.001)] l_codebook: 2.3773e-01 l_semantic: 0.0000e+00 l_pix: 7.5832e-02 l_percep: 5.3785e-01 l_g_gan: 2.5676e-02 l_d_real: 1.2848e+00 out_d_real: -2.8329e-01 l_d_fake: 7.4484e-01 out_d_fake: -2.5676e-01 
+2023-07-25 10:56:16,515 INFO: [016_F..][epoch:  0, iter:   1,000, lr:(1.000e-04,4.000e-04,)] [eta: 18:41:45, time (data): 0.339 (0.001)] l_codebook: 2.4186e-01 l_semantic: 0.0000e+00 l_pix: 8.1762e-02 l_percep: 5.5048e-01 l_g_gan: -5.9506e-03 l_d_real: 1.3671e+00 out_d_real: -3.6667e-01 l_d_fake: 1.0596e+00 out_d_fake: 5.9507e-02 
+2023-07-25 10:56:51,275 INFO: [016_F..][epoch:  0, iter:   1,100, lr:(1.000e-04,4.000e-04,)] [eta: 18:44:01, time (data): 0.339 (0.001)] l_codebook: 2.4134e-01 l_semantic: 0.0000e+00 l_pix: 6.2129e-02 l_percep: 5.2573e-01 l_g_gan: 4.7867e-02 l_d_real: 1.3748e+00 out_d_real: -3.7225e-01 l_d_fake: 5.2604e-01 out_d_fake: -4.7867e-01 
+2023-07-25 10:57:25,149 INFO: [016_F..][epoch:  0, iter:   1,200, lr:(1.000e-04,4.000e-04,)] [eta: 18:43:21, time (data): 0.339 (0.001)] l_codebook: 2.2998e-01 l_semantic: 0.0000e+00 l_pix: 9.1288e-02 l_percep: 5.1780e-01 l_g_gan: 2.6738e-02 l_d_real: 1.4191e+00 out_d_real: -4.1561e-01 l_d_fake: 7.3418e-01 out_d_fake: -2.6738e-01 
+2023-07-25 10:57:59,039 INFO: [016_F..][epoch:  0, iter:   1,300, lr:(1.000e-04,4.000e-04,)] [eta: 18:42:45, time (data): 0.339 (0.001)] l_codebook: 2.2436e-01 l_semantic: 0.0000e+00 l_pix: 6.7449e-02 l_percep: 5.0205e-01 l_g_gan: 3.1189e-02 l_d_real: 1.1973e+00 out_d_real: -1.9525e-01 l_d_fake: 6.8977e-01 out_d_fake: -3.1189e-01 
+2023-07-25 10:58:32,988 INFO: [016_F..][epoch:  0, iter:   1,400, lr:(1.000e-04,4.000e-04,)] [eta: 18:42:18, time (data): 0.339 (0.001)] l_codebook: 2.3961e-01 l_semantic: 0.0000e+00 l_pix: 8.1862e-02 l_percep: 5.3922e-01 l_g_gan: 1.1954e-02 l_d_real: 1.2568e+00 out_d_real: -2.5373e-01 l_d_fake: 8.8080e-01 out_d_fake: -1.1954e-01 
+2023-07-25 10:59:06,900 INFO: [016_F..][epoch:  0, iter:   1,500, lr:(1.000e-04,4.000e-04,)] [eta: 18:41:45, time (data): 0.339 (0.001)] l_codebook: 2.3657e-01 l_semantic: 0.0000e+00 l_pix: 9.7049e-02 l_percep: 5.5188e-01 l_g_gan: 4.6741e-03 l_d_real: 1.1258e+00 out_d_real: -1.0412e-01 l_d_fake: 9.5477e-01 out_d_fake: -4.6816e-02 
+2023-07-25 10:59:40,853 INFO: [016_F..][epoch:  0, iter:   1,600, lr:(1.000e-04,4.000e-04,)] [eta: 18:41:16, time (data): 0.339 (0.001)] l_codebook: 2.4370e-01 l_semantic: 0.0000e+00 l_pix: 9.6289e-02 l_percep: 5.4984e-01 l_g_gan: 2.6943e-03 l_d_real: 1.0485e+00 out_d_real: -4.0938e-02 l_d_fake: 9.7335e-01 out_d_fake: -2.6942e-02 
+2023-07-25 11:00:14,790 INFO: [016_F..][epoch:  0, iter:   1,700, lr:(1.000e-04,4.000e-04,)] [eta: 18:40:46, time (data): 0.339 (0.001)] l_codebook: 2.2500e-01 l_semantic: 0.0000e+00 l_pix: 6.0559e-02 l_percep: 5.2034e-01 l_g_gan: 3.6327e-02 l_d_real: 1.2145e+00 out_d_real: -2.0747e-01 l_d_fake: 6.3676e-01 out_d_fake: -3.6326e-01 
+2023-07-25 11:00:48,682 INFO: [016_F..][epoch:  0, iter:   1,800, lr:(1.000e-04,4.000e-04,)] [eta: 18:40:10, time (data): 0.339 (0.001)] l_codebook: 2.5322e-01 l_semantic: 0.0000e+00 l_pix: 8.5871e-02 l_percep: 5.5096e-01 l_g_gan: 1.7109e-02 l_d_real: 1.1691e+00 out_d_real: -1.6284e-01 l_d_fake: 8.4230e-01 out_d_fake: -1.7109e-01 
+2023-07-25 11:01:22,574 INFO: [016_F..][epoch:  0, iter:   1,900, lr:(1.000e-04,4.000e-04,)] [eta: 18:39:34, time (data): 0.339 (0.001)] l_codebook: 2.0989e-01 l_semantic: 0.0000e+00 l_pix: 7.0842e-02 l_percep: 5.4255e-01 l_g_gan: 3.6022e-02 l_d_real: 1.2285e+00 out_d_real: -2.2586e-01 l_d_fake: 6.4089e-01 out_d_fake: -3.6022e-01 
+2023-07-25 11:01:56,482 INFO: [016_F..][epoch:  0, iter:   2,000, lr:(1.000e-04,4.000e-04,)] [eta: 18:39:00, time (data): 0.339 (0.001)] l_codebook: 2.0445e-01 l_semantic: 0.0000e+00 l_pix: 7.8739e-02 l_percep: 5.2708e-01 l_g_gan: 3.6139e-02 l_d_real: 1.0488e+00 out_d_real: -2.4853e-02 l_d_fake: 6.4181e-01 out_d_fake: -3.6139e-01 
+2023-07-25 11:02:31,201 INFO: [016_F..][epoch:  0, iter:   2,100, lr:(1.000e-04,4.000e-04,)] [eta: 18:39:42, time (data): 0.339 (0.001)] l_codebook: 2.3629e-01 l_semantic: 0.0000e+00 l_pix: 8.4299e-02 l_percep: 5.2819e-01 l_g_gan: 8.5470e-03 l_d_real: 9.0398e-01 out_d_real: 1.5072e-01 l_d_fake: 9.1457e-01 out_d_fake: -8.5473e-02 
+2023-07-25 11:03:05,107 INFO: [016_F..][epoch:  0, iter:   2,200, lr:(1.000e-04,4.000e-04,)] [eta: 18:39:04, time (data): 0.339 (0.001)] l_codebook: 2.0162e-01 l_semantic: 0.0000e+00 l_pix: 6.7005e-02 l_percep: 4.7436e-01 l_g_gan: 3.9918e-02 l_d_real: 1.2815e+00 out_d_real: -2.6619e-01 l_d_fake: 6.0206e-01 out_d_fake: -3.9919e-01 
+2023-07-25 11:03:39,022 INFO: [016_F..][epoch:  0, iter:   2,300, lr:(1.000e-04,4.000e-04,)] [eta: 18:38:28, time (data): 0.339 (0.001)] l_codebook: 2.3884e-01 l_semantic: 0.0000e+00 l_pix: 7.3752e-02 l_percep: 4.8967e-01 l_g_gan: 5.5418e-02 l_d_real: 1.1843e+00 out_d_real: -1.4665e-01 l_d_fake: 4.4710e-01 out_d_fake: -5.5417e-01 
+2023-07-25 11:04:13,006 INFO: [016_F..][epoch:  0, iter:   2,400, lr:(1.000e-04,4.000e-04,)] [eta: 18:37:57, time (data): 0.339 (0.001)] l_codebook: 1.7319e-01 l_semantic: 0.0000e+00 l_pix: 5.7526e-02 l_percep: 4.5625e-01 l_g_gan: 4.8691e-02 l_d_real: 1.3939e+00 out_d_real: -3.9280e-01 l_d_fake: 5.1366e-01 out_d_fake: -4.8692e-01 
+2023-07-25 11:04:46,920 INFO: [016_F..][epoch:  0, iter:   2,500, lr:(1.000e-04,4.000e-04,)] [eta: 18:37:21, time (data): 0.339 (0.001)] l_codebook: 2.3204e-01 l_semantic: 0.0000e+00 l_pix: 8.6795e-02 l_percep: 5.2834e-01 l_g_gan: 2.9341e-02 l_d_real: 1.0529e+00 out_d_real: -2.3150e-02 l_d_fake: 7.1108e-01 out_d_fake: -2.9340e-01 
+2023-07-25 11:05:20,804 INFO: [016_F..][epoch:  0, iter:   2,600, lr:(1.000e-04,4.000e-04,)] [eta: 18:36:42, time (data): 0.339 (0.001)] l_codebook: 2.1501e-01 l_semantic: 0.0000e+00 l_pix: 7.6497e-02 l_percep: 5.2653e-01 l_g_gan: 2.5934e-02 l_d_real: 1.1521e+00 out_d_real: -1.4536e-01 l_d_fake: 7.4073e-01 out_d_fake: -2.5935e-01 
+2023-07-25 11:05:54,664 INFO: [016_F..][epoch:  0, iter:   2,700, lr:(1.000e-04,4.000e-04,)] [eta: 18:36:02, time (data): 0.339 (0.001)] l_codebook: 2.0417e-01 l_semantic: 0.0000e+00 l_pix: 7.8623e-02 l_percep: 4.8454e-01 l_g_gan: 2.2691e-02 l_d_real: 1.4447e+00 out_d_real: -4.4373e-01 l_d_fake: 7.7386e-01 out_d_fake: -2.2692e-01 
+2023-07-25 11:06:28,536 INFO: [016_F..][epoch:  0, iter:   2,800, lr:(1.000e-04,4.000e-04,)] [eta: 18:35:23, time (data): 0.339 (0.001)] l_codebook: 1.7991e-01 l_semantic: 0.0000e+00 l_pix: 5.2938e-02 l_percep: 5.2019e-01 l_g_gan: 5.4196e-02 l_d_real: 1.6203e+00 out_d_real: -6.1961e-01 l_d_fake: 4.5938e-01 out_d_fake: -5.4196e-01 
+2023-07-25 11:07:02,428 INFO: [016_F..][epoch:  0, iter:   2,900, lr:(1.000e-04,4.000e-04,)] [eta: 18:34:46, time (data): 0.339 (0.001)] l_codebook: 2.4494e-01 l_semantic: 0.0000e+00 l_pix: 9.8649e-02 l_percep: 5.3258e-01 l_g_gan: 4.7986e-03 l_d_real: 8.3234e-01 out_d_real: 2.0408e-01 l_d_fake: 9.5241e-01 out_d_fake: -4.7985e-02 
+2023-07-25 11:07:36,362 INFO: [016_F..][epoch:  0, iter:   3,000, lr:(1.000e-04,4.000e-04,)] [eta: 18:34:12, time (data): 0.339 (0.001)] l_codebook: 2.1635e-01 l_semantic: 0.0000e+00 l_pix: 8.1393e-02 l_percep: 5.1815e-01 l_g_gan: 2.8818e-02 l_d_real: 1.2302e+00 out_d_real: -2.1785e-01 l_d_fake: 7.1933e-01 out_d_fake: -2.8819e-01 
+2023-07-25 11:08:10,980 INFO: [016_F..][epoch:  0, iter:   3,100, lr:(1.000e-04,4.000e-04,)] [eta: 18:34:22, time (data): 0.338 (0.001)] l_codebook: 2.2069e-01 l_semantic: 0.0000e+00 l_pix: 8.6649e-02 l_percep: 5.2589e-01 l_g_gan: 1.9122e-02 l_d_real: 1.1571e+00 out_d_real: -1.4070e-01 l_d_fake: 8.1017e-01 out_d_fake: -1.9122e-01 
+2023-07-25 11:08:44,822 INFO: [016_F..][epoch:  0, iter:   3,200, lr:(1.000e-04,4.000e-04,)] [eta: 18:33:41, time (data): 0.338 (0.001)] l_codebook: 1.9642e-01 l_semantic: 0.0000e+00 l_pix: 7.8961e-02 l_percep: 5.0858e-01 l_g_gan: 2.3592e-02 l_d_real: 1.1999e+00 out_d_real: -1.9213e-01 l_d_fake: 7.6481e-01 out_d_fake: -2.3592e-01 
+2023-07-25 11:09:18,632 INFO: [016_F..][epoch:  0, iter:   3,300, lr:(1.000e-04,4.000e-04,)] [eta: 18:32:58, time (data): 0.338 (0.001)] l_codebook: 2.3129e-01 l_semantic: 0.0000e+00 l_pix: 8.3180e-02 l_percep: 5.1779e-01 l_g_gan: 2.6026e-02 l_d_real: 1.2709e+00 out_d_real: -2.6603e-01 l_d_fake: 7.4256e-01 out_d_fake: -2.6026e-01 
+2023-07-25 11:09:52,507 INFO: [016_F..][epoch:  0, iter:   3,400, lr:(1.000e-04,4.000e-04,)] [eta: 18:32:20, time (data): 0.338 (0.001)] l_codebook: 2.0328e-01 l_semantic: 0.0000e+00 l_pix: 5.9873e-02 l_percep: 4.9511e-01 l_g_gan: 4.7430e-02 l_d_real: 1.3897e+00 out_d_real: -3.8878e-01 l_d_fake: 5.3024e-01 out_d_fake: -4.7430e-01 
+2023-07-25 11:10:26,334 INFO: [016_F..][epoch:  0, iter:   3,500, lr:(1.000e-04,4.000e-04,)] [eta: 18:31:39, time (data): 0.338 (0.001)] l_codebook: 1.9579e-01 l_semantic: 0.0000e+00 l_pix: 5.9304e-02 l_percep: 5.0941e-01 l_g_gan: 4.5986e-02 l_d_real: 1.4224e+00 out_d_real: -4.1462e-01 l_d_fake: 5.4086e-01 out_d_fake: -4.5987e-01 
+2023-07-25 11:11:00,151 INFO: [016_F..][epoch:  0, iter:   3,600, lr:(1.000e-04,4.000e-04,)] [eta: 18:30:58, time (data): 0.338 (0.001)] l_codebook: 2.7459e-01 l_semantic: 0.0000e+00 l_pix: 7.7803e-02 l_percep: 4.8710e-01 l_g_gan: 3.4795e-02 l_d_real: 1.1861e+00 out_d_real: -1.8454e-01 l_d_fake: 6.5360e-01 out_d_fake: -3.4797e-01 
+2023-07-25 11:11:33,930 INFO: [016_F..][epoch:  0, iter:   3,700, lr:(1.000e-04,4.000e-04,)] [eta: 18:30:16, time (data): 0.338 (0.001)] l_codebook: 2.0722e-01 l_semantic: 0.0000e+00 l_pix: 8.8655e-02 l_percep: 5.1663e-01 l_g_gan: 1.0668e-03 l_d_real: 1.0945e+00 out_d_real: -5.4690e-02 l_d_fake: 9.8997e-01 out_d_fake: -1.0669e-02 
+2023-07-25 11:12:07,738 INFO: [016_F..][epoch:  0, iter:   3,800, lr:(1.000e-04,4.000e-04,)] [eta: 18:29:35, time (data): 0.338 (0.001)] l_codebook: 2.2830e-01 l_semantic: 0.0000e+00 l_pix: 1.0043e-01 l_percep: 5.2449e-01 l_g_gan: 2.2459e-03 l_d_real: 9.6614e-01 out_d_real: 1.2410e-01 l_d_fake: 9.7758e-01 out_d_fake: -2.2460e-02 
+2023-07-25 11:12:41,584 INFO: [016_F..][epoch:  0, iter:   3,900, lr:(1.000e-04,4.000e-04,)] [eta: 18:28:57, time (data): 0.338 (0.001)] l_codebook: 2.3565e-01 l_semantic: 0.0000e+00 l_pix: 8.1288e-02 l_percep: 5.3102e-01 l_g_gan: 3.4068e-02 l_d_real: 1.1988e+00 out_d_real: -1.8428e-01 l_d_fake: 6.6288e-01 out_d_fake: -3.4068e-01 
+2023-07-25 11:13:15,391 INFO: [016_F..][epoch:  0, iter:   4,000, lr:(1.000e-04,4.000e-04,)] [eta: 18:28:17, time (data): 0.338 (0.001)] l_codebook: 2.2005e-01 l_semantic: 0.0000e+00 l_pix: 9.3677e-02 l_percep: 5.2822e-01 l_g_gan: 8.8755e-03 l_d_real: 9.8191e-01 out_d_real: 1.1671e-01 l_d_fake: 9.1210e-01 out_d_fake: -8.8772e-02 
+2023-07-25 11:13:49,986 INFO: [016_F..][epoch:  0, iter:   4,100, lr:(1.000e-04,4.000e-04,)] [eta: 18:28:15, time (data): 0.338 (0.001)] l_codebook: 2.1219e-01 l_semantic: 0.0000e+00 l_pix: 8.1919e-02 l_percep: 5.3175e-01 l_g_gan: 1.3480e-02 l_d_real: 1.2026e+00 out_d_real: -1.9289e-01 l_d_fake: 8.6845e-01 out_d_fake: -1.3479e-01 
+2023-07-25 11:14:23,776 INFO: [016_F..][epoch:  0, iter:   4,200, lr:(1.000e-04,4.000e-04,)] [eta: 18:27:34, time (data): 0.338 (0.001)] l_codebook: 2.2032e-01 l_semantic: 0.0000e+00 l_pix: 9.1932e-02 l_percep: 5.3084e-01 l_g_gan: 5.3192e-02 l_d_real: 1.0934e+00 out_d_real: -7.7701e-02 l_d_fake: 4.6986e-01 out_d_fake: -5.3192e-01 
+2023-07-25 11:14:57,559 INFO: [016_F..][epoch:  0, iter:   4,300, lr:(1.000e-04,4.000e-04,)] [eta: 18:26:53, time (data): 0.338 (0.001)] l_codebook: 1.8888e-01 l_semantic: 0.0000e+00 l_pix: 6.5533e-02 l_percep: 4.7747e-01 l_g_gan: 3.4866e-02 l_d_real: 1.2651e+00 out_d_real: -2.6061e-01 l_d_fake: 6.5156e-01 out_d_fake: -3.4869e-01 
+2023-07-25 11:15:31,424 INFO: [016_F..][epoch:  0, iter:   4,400, lr:(1.000e-04,4.000e-04,)] [eta: 18:26:16, time (data): 0.338 (0.001)] l_codebook: 2.0562e-01 l_semantic: 0.0000e+00 l_pix: 9.3460e-02 l_percep: 5.3586e-01 l_g_gan: -2.9807e-03 l_d_real: 9.3082e-01 out_d_real: 9.0246e-02 l_d_fake: 1.0341e+00 out_d_fake: 2.9811e-02 
+2023-07-25 11:16:05,251 INFO: [016_F..][epoch:  0, iter:   4,500, lr:(1.000e-04,4.000e-04,)] [eta: 18:25:37, time (data): 0.338 (0.001)] l_codebook: 2.2499e-01 l_semantic: 0.0000e+00 l_pix: 7.9206e-02 l_percep: 5.3006e-01 l_g_gan: 3.5541e-02 l_d_real: 1.1459e+00 out_d_real: -1.4059e-01 l_d_fake: 6.4586e-01 out_d_fake: -3.5541e-01 
+2023-07-25 11:16:39,038 INFO: [016_F..][epoch:  0, iter:   4,600, lr:(1.000e-04,4.000e-04,)] [eta: 18:24:57, time (data): 0.338 (0.001)] l_codebook: 2.2146e-01 l_semantic: 0.0000e+00 l_pix: 8.0422e-02 l_percep: 5.4150e-01 l_g_gan: 2.6370e-02 l_d_real: 1.2240e+00 out_d_real: -2.2313e-01 l_d_fake: 7.3635e-01 out_d_fake: -2.6370e-01 
+2023-07-25 11:17:12,871 INFO: [016_F..][epoch:  0, iter:   4,700, lr:(1.000e-04,4.000e-04,)] [eta: 18:24:19, time (data): 0.338 (0.001)] l_codebook: 2.1120e-01 l_semantic: 0.0000e+00 l_pix: 6.6782e-02 l_percep: 4.9582e-01 l_g_gan: 3.8155e-02 l_d_real: 1.2735e+00 out_d_real: -2.6606e-01 l_d_fake: 6.2102e-01 out_d_fake: -3.8155e-01 
+2023-07-25 11:17:46,653 INFO: [016_F..][epoch:  0, iter:   4,800, lr:(1.000e-04,4.000e-04,)] [eta: 18:23:39, time (data): 0.338 (0.001)] l_codebook: 2.1449e-01 l_semantic: 0.0000e+00 l_pix: 7.5384e-02 l_percep: 5.1839e-01 l_g_gan: 2.9585e-02 l_d_real: 1.1361e+00 out_d_real: -1.2342e-01 l_d_fake: 7.0501e-01 out_d_fake: -2.9585e-01 
+2023-07-25 11:18:20,434 INFO: [016_F..][epoch:  0, iter:   4,900, lr:(1.000e-04,4.000e-04,)] [eta: 18:22:59, time (data): 0.338 (0.001)] l_codebook: 2.1221e-01 l_semantic: 0.0000e+00 l_pix: 9.8932e-02 l_percep: 5.3974e-01 l_g_gan: -6.4140e-03 l_d_real: 1.0748e+00 out_d_real: -5.1830e-02 l_d_fake: 1.0642e+00 out_d_fake: 6.4142e-02 
+2023-07-25 11:18:54,258 INFO: [016_F..][epoch:  0, iter:   5,000, lr:(1.000e-04,4.000e-04,)] [eta: 18:22:22, time (data): 0.338 (0.001)] l_codebook: 2.5699e-01 l_semantic: 0.0000e+00 l_pix: 8.5662e-02 l_percep: 5.2626e-01 l_g_gan: 4.0311e-02 l_d_real: 1.1734e+00 out_d_real: -1.6853e-01 l_d_fake: 5.9819e-01 out_d_fake: -4.0311e-01 
+2023-07-25 11:18:54,913 INFO: Saving models and training states.
+2023-07-25 11:18:55,397 INFO: Only support single GPU validation.
+  0%|          | 0/100 [00:00<?, ?image/s]  1%|          | 1/100 [00:04<06:58,  4.23s/image]Test 0801:   1%|          | 1/100 [00:04<06:58,  4.23s/image]Test 0801:   2%|▏         | 2/100 [00:05<04:04,  2.49s/image]Test 0802:   2%|▏         | 2/100 [00:05<04:04,  2.49s/image]Test 0802:   3%|▎         | 3/100 [00:09<05:22,  3.33s/image]Test 0803:   3%|▎         | 3/100 [00:09<05:22,  3.33s/image]Test 0803:   4%|▍         | 4/100 [00:13<05:44,  3.59s/image]Test 0804:   4%|▍         | 4/100 [00:13<05:44,  3.59s/image]Test 0804:   5%|▌         | 5/100 [00:15<04:23,  2.77s/image]Test 0805:   5%|▌         | 5/100 [00:15<04:23,  2.77s/image]Test 0805:   6%|▌         | 6/100 [00:16<03:20,  2.14s/image]Test 0806:   6%|▌         | 6/100 [00:16<03:20,  2.14s/image]Test 0806:   7%|▋         | 7/100 [00:19<04:06,  2.66s/image]Test 0807:   7%|▋         | 7/100 [00:19<04:06,  2.66s/image]Test 0807:   8%|▊         | 8/100 [00:20<03:21,  2.19s/image]Test 0808:   8%|▊         | 8/100 [00:20<03:21,  2.19s/image]Test 0808:   9%|▉         | 9/100 [00:21<02:44,  1.81s/image]Test 0809:   9%|▉         | 9/100 [00:21<02:44,  1.81s/image]Test 0809:  10%|█         | 10/100 [00:23<02:24,  1.61s/image]Test 0810:  10%|█         | 10/100 [00:23<02:24,  1.61s/image]Test 0810:  11%|█         | 11/100 [00:24<02:05,  1.42s/image]Test 0811:  11%|█         | 11/100 [00:24<02:05,  1.42s/image]Test 0811:  12%|█▏        | 12/100 [00:25<01:54,  1.31s/image]Test 0812:  12%|█▏        | 12/100 [00:25<01:54,  1.31s/image]Test 0812:  13%|█▎        | 13/100 [00:29<03:03,  2.11s/image]Test 0813:  13%|█▎        | 13/100 [00:29<03:03,  2.11s/image]Test 0813:  14%|█▍        | 14/100 [00:30<02:37,  1.83s/image]Test 0814:  14%|█▍        | 14/100 [00:30<02:37,  1.83s/image]Test 0814:  15%|█▌        | 15/100 [00:31<02:12,  1.56s/image]Test 0815:  15%|█▌        | 15/100 [00:31<02:12,  1.56s/image]Test 0815:  16%|█▌        | 16/100 [00:32<01:53,  1.35s/image]Test 0816:  16%|█▌        | 16/100 [00:32<01:53,  1.35s/image]Test 0816:  17%|█▋        | 17/100 [00:33<01:43,  1.25s/image]Test 0817:  17%|█▋        | 17/100 [00:33<01:43,  1.25s/image]Test 0817:  18%|█▊        | 18/100 [00:34<01:37,  1.18s/image]Test 0818:  18%|█▊        | 18/100 [00:34<01:37,  1.18s/image]Test 0818:  19%|█▉        | 19/100 [00:34<01:28,  1.09s/image]Test 0819:  19%|█▉        | 19/100 [00:34<01:28,  1.09s/image]Test 0819:  20%|██        | 20/100 [00:35<01:24,  1.05s/image]Test 0820:  20%|██        | 20/100 [00:35<01:24,  1.05s/image]Test 0820:  21%|██        | 21/100 [00:36<01:19,  1.01s/image]Test 0821:  21%|██        | 21/100 [00:36<01:19,  1.01s/image]Test 0821:  22%|██▏       | 22/100 [00:38<01:24,  1.09s/image]Test 0822:  22%|██▏       | 22/100 [00:38<01:24,  1.09s/image]Test 0822:  23%|██▎       | 23/100 [00:42<02:33,  1.99s/image]Test 0823:  23%|██▎       | 23/100 [00:42<02:33,  1.99s/image]Test 0823:  24%|██▍       | 24/100 [00:43<02:14,  1.77s/image]Test 0824:  24%|██▍       | 24/100 [00:43<02:14,  1.77s/image]Test 0824:  25%|██▌       | 25/100 [00:44<01:52,  1.51s/image]Test 0825:  25%|██▌       | 25/100 [00:44<01:52,  1.51s/image]Test 0825:  26%|██▌       | 26/100 [00:45<01:40,  1.36s/image]Test 0826:  26%|██▌       | 26/100 [00:45<01:40,  1.36s/image]Test 0826:  27%|██▋       | 27/100 [00:46<01:32,  1.26s/image]Test 0827:  27%|██▋       | 27/100 [00:46<01:32,  1.26s/image]Test 0827:  28%|██▊       | 28/100 [00:47<01:21,  1.13s/image]Test 0828:  28%|██▊       | 28/100 [00:47<01:21,  1.13s/image]Test 0828:  29%|██▉       | 29/100 [00:48<01:16,  1.08s/image]Test 0829:  29%|██▉       | 29/100 [00:48<01:16,  1.08s/image]Test 0829:  30%|███       | 30/100 [00:51<02:06,  1.81s/image]Test 0830:  30%|███       | 30/100 [00:51<02:06,  1.81s/image]Test 0830:  31%|███       | 31/100 [00:52<01:51,  1.61s/image]Test 0831:  31%|███       | 31/100 [00:52<01:51,  1.61s/image]Test 0831:  32%|███▏      | 32/100 [00:53<01:34,  1.40s/image]Test 0832:  32%|███▏      | 32/100 [00:53<01:34,  1.40s/image]Test 0832:  33%|███▎      | 33/100 [00:54<01:26,  1.29s/image]Test 0833:  33%|███▎      | 33/100 [00:54<01:26,  1.29s/image]Test 0833:  34%|███▍      | 34/100 [00:55<01:16,  1.16s/image]Test 0834:  34%|███▍      | 34/100 [00:55<01:16,  1.16s/image]Test 0834:  35%|███▌      | 35/100 [00:59<02:14,  2.07s/image]Test 0835:  35%|███▌      | 35/100 [00:59<02:14,  2.07s/image]Test 0835:  36%|███▌      | 36/100 [01:01<01:56,  1.82s/image]Test 0836:  36%|███▌      | 36/100 [01:01<01:56,  1.82s/image]Test 0836:  37%|███▋      | 37/100 [01:01<01:36,  1.53s/image]Test 0837:  37%|███▋      | 37/100 [01:01<01:36,  1.53s/image]Test 0837:  38%|███▊      | 38/100 [01:02<01:22,  1.33s/image]Test 0838:  38%|███▊      | 38/100 [01:02<01:22,  1.33s/image]Test 0838:  39%|███▉      | 39/100 [01:03<01:11,  1.17s/image]Test 0839:  39%|███▉      | 39/100 [01:03<01:11,  1.17s/image]Test 0839:  40%|████      | 40/100 [01:04<01:05,  1.09s/image]Test 0840:  40%|████      | 40/100 [01:04<01:05,  1.09s/image]Test 0840:  41%|████      | 41/100 [01:05<01:01,  1.04s/image]Test 0841:  41%|████      | 41/100 [01:05<01:01,  1.04s/image]Test 0841:  42%|████▏     | 42/100 [01:06<00:56,  1.02image/s]Test 0842:  42%|████▏     | 42/100 [01:06<00:56,  1.02image/s]Test 0842:  43%|████▎     | 43/100 [01:06<00:51,  1.11image/s]Test 0843:  43%|████▎     | 43/100 [01:06<00:51,  1.11image/s]Test 0843:  44%|████▍     | 44/100 [01:10<01:39,  1.77s/image]Test 0844:  44%|████▍     | 44/100 [01:10<01:39,  1.77s/image]Test 0844:  45%|████▌     | 45/100 [01:11<01:26,  1.57s/image]Test 0845:  45%|████▌     | 45/100 [01:11<01:26,  1.57s/image]Test 0845:  46%|████▌     | 46/100 [01:12<01:16,  1.41s/image]Test 0846:  46%|████▌     | 46/100 [01:12<01:16,  1.41s/image]Test 0846:  47%|████▋     | 47/100 [01:14<01:11,  1.34s/image]Test 0847:  47%|████▋     | 47/100 [01:14<01:11,  1.34s/image]Test 0847:  48%|████▊     | 48/100 [01:15<01:03,  1.21s/image]Test 0848:  48%|████▊     | 48/100 [01:15<01:03,  1.21s/image]Test 0848:  49%|████▉     | 49/100 [01:15<00:56,  1.10s/image]Test 0849:  49%|████▉     | 49/100 [01:15<00:56,  1.10s/image]Test 0849:  50%|█████     | 50/100 [01:16<00:51,  1.02s/image]Test 0850:  50%|█████     | 50/100 [01:16<00:51,  1.02s/image]Test 0850:  51%|█████     | 51/100 [01:17<00:49,  1.01s/image]Test 0851:  51%|█████     | 51/100 [01:17<00:49,  1.01s/image]Test 0851:  52%|█████▏    | 52/100 [01:18<00:46,  1.02image/s]Test 0852:  52%|█████▏    | 52/100 [01:18<00:46,  1.02image/s]Test 0852:  53%|█████▎    | 53/100 [01:19<00:48,  1.04s/image]Test 0853:  53%|█████▎    | 53/100 [01:19<00:48,  1.04s/image]Test 0853:  54%|█████▍    | 54/100 [01:23<01:19,  1.73s/image]Test 0854:  54%|█████▍    | 54/100 [01:23<01:19,  1.73s/image]Test 0854:  55%|█████▌    | 55/100 [01:27<01:54,  2.55s/image]Test 0855:  55%|█████▌    | 55/100 [01:27<01:54,  2.55s/image]Test 0855:  56%|█████▌    | 56/100 [01:28<01:33,  2.13s/image]Test 0856:  56%|█████▌    | 56/100 [01:28<01:33,  2.13s/image]Test 0856:  57%|█████▋    | 57/100 [01:29<01:17,  1.81s/image]Test 0857:  57%|█████▋    | 57/100 [01:29<01:17,  1.81s/image]Test 0857:  58%|█████▊    | 58/100 [01:30<01:07,  1.61s/image]Test 0858:  58%|█████▊    | 58/100 [01:30<01:07,  1.61s/image]Test 0858:  59%|█████▉    | 59/100 [01:31<00:57,  1.39s/image]Test 0859:  59%|█████▉    | 59/100 [01:31<00:57,  1.39s/image]Test 0859:  60%|██████    | 60/100 [01:32<00:50,  1.26s/image]Test 0860:  60%|██████    | 60/100 [01:32<00:50,  1.26s/image]Test 0860:  61%|██████    | 61/100 [01:34<00:55,  1.43s/image]Test 0861:  61%|██████    | 61/100 [01:34<00:55,  1.43s/image]Test 0861:  62%|██████▏   | 62/100 [01:35<00:47,  1.25s/image]Test 0862:  62%|██████▏   | 62/100 [01:35<00:47,  1.25s/image]Test 0862:  63%|██████▎   | 63/100 [01:39<01:16,  2.06s/image]Test 0863:  63%|██████▎   | 63/100 [01:39<01:16,  2.06s/image]Test 0863:  64%|██████▍   | 64/100 [01:40<01:04,  1.79s/image]Test 0864:  64%|██████▍   | 64/100 [01:40<01:04,  1.79s/image]Test 0864:  65%|██████▌   | 65/100 [01:41<00:54,  1.54s/image]Test 0865:  65%|██████▌   | 65/100 [01:41<00:54,  1.54s/image]Test 0865:  66%|██████▌   | 66/100 [01:42<00:45,  1.34s/image]Test 0866:  66%|██████▌   | 66/100 [01:42<00:45,  1.34s/image]Test 0866:  67%|██████▋   | 67/100 [01:43<00:39,  1.20s/image]Test 0867:  67%|██████▋   | 67/100 [01:43<00:39,  1.20s/image]Test 0867:  68%|██████▊   | 68/100 [01:44<00:34,  1.08s/image]Test 0868:  68%|██████▊   | 68/100 [01:44<00:34,  1.08s/image]Test 0868:  69%|██████▉   | 69/100 [01:44<00:31,  1.01s/image]Test 0869:  69%|██████▉   | 69/100 [01:44<00:31,  1.01s/image]Test 0869:  70%|███████   | 70/100 [01:46<00:31,  1.05s/image]Test 0870:  70%|███████   | 70/100 [01:46<00:31,  1.05s/image]Test 0870:  71%|███████   | 71/100 [01:47<00:30,  1.05s/image]Test 0871:  71%|███████   | 71/100 [01:47<00:30,  1.05s/image]Test 0871:  72%|███████▏  | 72/100 [01:47<00:28,  1.00s/image]Test 0872:  72%|███████▏  | 72/100 [01:47<00:28,  1.00s/image]Test 0872:  73%|███████▎  | 73/100 [01:48<00:25,  1.05image/s]Test 0873:  73%|███████▎  | 73/100 [01:48<00:25,  1.05image/s]Test 0873:  74%|███████▍  | 74/100 [01:49<00:24,  1.08image/s]Test 0874:  74%|███████▍  | 74/100 [01:49<00:24,  1.08image/s]Test 0874:  75%|███████▌  | 75/100 [01:50<00:23,  1.05image/s]Test 0875:  75%|███████▌  | 75/100 [01:50<00:23,  1.05image/s]Test 0875:  76%|███████▌  | 76/100 [01:51<00:22,  1.07image/s]Test 0876:  76%|███████▌  | 76/100 [01:51<00:22,  1.07image/s]Test 0876:  77%|███████▋  | 77/100 [01:52<00:20,  1.13image/s]Test 0877:  77%|███████▋  | 77/100 [01:52<00:20,  1.13image/s]Test 0877:  78%|███████▊  | 78/100 [01:56<00:42,  1.91s/image]Test 0878:  78%|███████▊  | 78/100 [01:56<00:42,  1.91s/image]Test 0878:  79%|███████▉  | 79/100 [02:01<00:55,  2.65s/image]Test 0879:  79%|███████▉  | 79/100 [02:01<00:55,  2.65s/image]Test 0879:  80%|████████  | 80/100 [02:02<00:43,  2.18s/image]Test 0880:  80%|████████  | 80/100 [02:02<00:43,  2.18s/image]Test 0880:  81%|████████  | 81/100 [02:05<00:49,  2.62s/image]Test 0881:  81%|████████  | 81/100 [02:05<00:49,  2.62s/image]Test 0881:  82%|████████▏ | 82/100 [02:06<00:38,  2.17s/image]Test 0882:  82%|████████▏ | 82/100 [02:06<00:38,  2.17s/image]Test 0882:  83%|████████▎ | 83/100 [02:07<00:31,  1.85s/image]Test 0883:  83%|████████▎ | 83/100 [02:07<00:31,  1.85s/image]Test 0883:  84%|████████▍ | 84/100 [02:09<00:26,  1.63s/image]Test 0884:  84%|████████▍ | 84/100 [02:09<00:26,  1.63s/image]Test 0884:  85%|████████▌ | 85/100 [02:09<00:20,  1.40s/image]Test 0885:  85%|████████▌ | 85/100 [02:09<00:20,  1.40s/image]Test 0885:  86%|████████▌ | 86/100 [02:10<00:17,  1.23s/image]Test 0886:  86%|████████▌ | 86/100 [02:10<00:17,  1.23s/image]Test 0886:  87%|████████▋ | 87/100 [02:11<00:14,  1.11s/image]Test 0887:  87%|████████▋ | 87/100 [02:11<00:14,  1.11s/image]Test 0887:  88%|████████▊ | 88/100 [02:12<00:12,  1.04s/image]Test 0888:  88%|████████▊ | 88/100 [02:12<00:12,  1.04s/image]Test 0888:  89%|████████▉ | 89/100 [02:13<00:10,  1.02image/s]Test 0889:  89%|████████▉ | 89/100 [02:13<00:10,  1.02image/s]Test 0889:  90%|█████████ | 90/100 [02:14<00:09,  1.06image/s]Test 0890:  90%|█████████ | 90/100 [02:14<00:09,  1.06image/s]Test 0890:  91%|█████████ | 91/100 [02:18<00:17,  1.93s/image]Test 0891:  91%|█████████ | 91/100 [02:18<00:17,  1.93s/image]Test 0891:  92%|█████████▏| 92/100 [02:19<00:13,  1.64s/image]Test 0892:  92%|█████████▏| 92/100 [02:19<00:13,  1.64s/image]Test 0892:  93%|█████████▎| 93/100 [02:20<00:09,  1.40s/image]Test 0893:  93%|█████████▎| 93/100 [02:20<00:09,  1.40s/image]Test 0893:  94%|█████████▍| 94/100 [02:21<00:07,  1.24s/image]Test 0894:  94%|█████████▍| 94/100 [02:21<00:07,  1.24s/image]Test 0894:  95%|█████████▌| 95/100 [02:21<00:05,  1.10s/image]Test 0895:  95%|█████████▌| 95/100 [02:21<00:05,  1.10s/image]Test 0895:  96%|█████████▌| 96/100 [02:22<00:04,  1.02s/image]Test 0896:  96%|█████████▌| 96/100 [02:22<00:04,  1.02s/image]Test 0896:  97%|█████████▋| 97/100 [02:23<00:02,  1.04image/s]Test 0897:  97%|█████████▋| 97/100 [02:23<00:02,  1.04image/s]Test 0897:  98%|█████████▊| 98/100 [02:24<00:01,  1.08image/s]Test 0898:  98%|█████████▊| 98/100 [02:24<00:01,  1.08image/s]Test 0898:  99%|█████████▉| 99/100 [02:25<00:00,  1.11image/s]Test 0899:  99%|█████████▉| 99/100 [02:25<00:00,  1.11image/s]Test 0899: 100%|██████████| 100/100 [02:25<00:00,  1.17image/s]Test 0900: 100%|██████████| 100/100 [02:25<00:00,  1.17image/s]Test 0900: 100%|██████████| 100/100 [02:25<00:00,  1.46s/image]
+2023-07-25 11:21:21,652 INFO: Validation General_Image_Valid
+	 # psnr: 20.9938	Best: 20.9938 @ 5000 iter
+	 # ssim: 0.5397	Best: 0.5397 @ 5000 iter
+	 # lpips: 0.4280	Best: 0.4280 @ 5000 iter
+
+2023-07-25 11:21:55,017 INFO: [016_F..][epoch:  0, iter:   5,100, lr:(1.000e-04,4.000e-04,)] [eta: 19:55:18, time (data): 0.335 (0.001)] l_codebook: 1.8502e-01 l_semantic: 0.0000e+00 l_pix: 5.7988e-02 l_percep: 5.1032e-01 l_g_gan: 3.5400e-02 l_d_real: 1.2230e+00 out_d_real: -2.1512e-01 l_d_fake: 6.4677e-01 out_d_fake: -3.5401e-01 
+2023-07-25 11:22:28,536 INFO: [016_F..][epoch:  0, iter:   5,200, lr:(1.000e-04,4.000e-04,)] [eta: 19:52:39, time (data): 0.335 (0.001)] l_codebook: 1.7957e-01 l_semantic: 0.0000e+00 l_pix: 8.0839e-02 l_percep: 4.5680e-01 l_g_gan: 3.3835e-02 l_d_real: 1.1356e+00 out_d_real: -6.2823e-02 l_d_fake: 6.7389e-01 out_d_fake: -3.3834e-01 
+2023-07-25 11:23:02,098 INFO: [016_F..][epoch:  0, iter:   5,300, lr:(1.000e-04,4.000e-04,)] [eta: 19:50:05, time (data): 0.336 (0.001)] l_codebook: 2.1100e-01 l_semantic: 0.0000e+00 l_pix: 7.6237e-02 l_percep: 5.2263e-01 l_g_gan: 2.8919e-02 l_d_real: 1.0642e+00 out_d_real: -4.4547e-02 l_d_fake: 7.1171e-01 out_d_fake: -2.8918e-01 
+2023-07-25 11:23:35,738 INFO: [016_F..][epoch:  0, iter:   5,400, lr:(1.000e-04,4.000e-04,)] [eta: 19:47:39, time (data): 0.336 (0.001)] l_codebook: 2.0087e-01 l_semantic: 0.0000e+00 l_pix: 6.9505e-02 l_percep: 4.6917e-01 l_g_gan: 2.6206e-02 l_d_real: 1.1722e+00 out_d_real: -1.1972e-01 l_d_fake: 7.4192e-01 out_d_fake: -2.6205e-01 
+2023-07-25 11:24:09,291 INFO: [016_F..][epoch:  0, iter:   5,500, lr:(1.000e-04,4.000e-04,)] [eta: 19:45:14, time (data): 0.336 (0.001)] l_codebook: 2.2186e-01 l_semantic: 0.0000e+00 l_pix: 6.4969e-02 l_percep: 5.2044e-01 l_g_gan: 2.3836e-02 l_d_real: 1.2336e+00 out_d_real: -2.2753e-01 l_d_fake: 7.6188e-01 out_d_fake: -2.3837e-01 
+2023-07-25 11:24:42,864 INFO: [016_F..][epoch:  0, iter:   5,600, lr:(1.000e-04,4.000e-04,)] [eta: 19:42:54, time (data): 0.336 (0.001)] l_codebook: 2.3125e-01 l_semantic: 0.0000e+00 l_pix: 9.1433e-02 l_percep: 5.3015e-01 l_g_gan: 5.2886e-03 l_d_real: 1.0687e+00 out_d_real: -4.9634e-02 l_d_fake: 9.5754e-01 out_d_fake: -5.2893e-02 
+2023-07-25 11:25:16,396 INFO: [016_F..][epoch:  0, iter:   5,700, lr:(1.000e-04,4.000e-04,)] [eta: 19:40:36, time (data): 0.335 (0.001)] l_codebook: 2.0577e-01 l_semantic: 0.0000e+00 l_pix: 5.9649e-02 l_percep: 5.1017e-01 l_g_gan: 3.9578e-02 l_d_real: 1.3624e+00 out_d_real: -3.3876e-01 l_d_fake: 6.0710e-01 out_d_fake: -3.9580e-01 
+2023-07-25 11:25:49,955 INFO: [016_F..][epoch:  0, iter:   5,800, lr:(1.000e-04,4.000e-04,)] [eta: 19:38:23, time (data): 0.335 (0.001)] l_codebook: 2.1920e-01 l_semantic: 0.0000e+00 l_pix: 6.9655e-02 l_percep: 5.1686e-01 l_g_gan: 2.5244e-02 l_d_real: 1.3595e+00 out_d_real: -3.5133e-01 l_d_fake: 7.5508e-01 out_d_fake: -2.5244e-01 
+2023-07-25 11:26:23,482 INFO: [016_F..][epoch:  0, iter:   5,900, lr:(1.000e-04,4.000e-04,)] [eta: 19:36:11, time (data): 0.335 (0.001)] l_codebook: 2.6565e-01 l_semantic: 0.0000e+00 l_pix: 8.8185e-02 l_percep: 5.3417e-01 l_g_gan: 1.3479e-02 l_d_real: 9.9165e-01 out_d_real: 9.6153e-02 l_d_fake: 8.6696e-01 out_d_fake: -1.3478e-01 
+2023-07-25 11:26:57,035 INFO: [016_F..][epoch:  0, iter:   6,000, lr:(1.000e-04,4.000e-04,)] [eta: 19:34:04, time (data): 0.335 (0.001)] l_codebook: 2.3149e-01 l_semantic: 0.0000e+00 l_pix: 7.0429e-02 l_percep: 5.3166e-01 l_g_gan: 2.2318e-02 l_d_real: 1.3449e+00 out_d_real: -3.4169e-01 l_d_fake: 7.7748e-01 out_d_fake: -2.2318e-01 
+2023-07-25 11:27:31,439 INFO: [016_F..][epoch:  0, iter:   6,100, lr:(1.000e-04,4.000e-04,)] [eta: 19:32:27, time (data): 0.336 (0.001)] l_codebook: 1.9112e-01 l_semantic: 0.0000e+00 l_pix: 6.1960e-02 l_percep: 4.6863e-01 l_g_gan: 3.1444e-02 l_d_real: 1.2403e+00 out_d_real: -2.3718e-01 l_d_fake: 6.8659e-01 out_d_fake: -3.1443e-01 
+2023-07-25 11:28:05,020 INFO: [016_F..][epoch:  0, iter:   6,200, lr:(1.000e-04,4.000e-04,)] [eta: 19:30:27, time (data): 0.336 (0.001)] l_codebook: 2.2167e-01 l_semantic: 0.0000e+00 l_pix: 7.9266e-02 l_percep: 5.2527e-01 l_g_gan: 2.3471e-02 l_d_real: 1.1265e+00 out_d_real: -1.0263e-01 l_d_fake: 7.7262e-01 out_d_fake: -2.3470e-01 
+2023-07-25 11:28:38,583 INFO: [016_F..][epoch:  0, iter:   6,300, lr:(1.000e-04,4.000e-04,)] [eta: 19:28:28, time (data): 0.335 (0.001)] l_codebook: 1.8202e-01 l_semantic: 0.0000e+00 l_pix: 6.9020e-02 l_percep: 4.5203e-01 l_g_gan: 3.8744e-02 l_d_real: 1.3368e+00 out_d_real: -3.0035e-01 l_d_fake: 6.1718e-01 out_d_fake: -3.8743e-01 
+2023-07-25 11:29:12,239 INFO: [016_F..][epoch:  0, iter:   6,400, lr:(1.000e-04,4.000e-04,)] [eta: 19:26:35, time (data): 0.336 (0.001)] l_codebook: 2.4974e-01 l_semantic: 0.0000e+00 l_pix: 7.1557e-02 l_percep: 4.8896e-01 l_g_gan: 4.0338e-02 l_d_real: 1.2983e+00 out_d_real: -2.9555e-01 l_d_fake: 5.9921e-01 out_d_fake: -4.0337e-01 
+2023-07-25 11:29:45,798 INFO: [016_F..][epoch:  0, iter:   6,500, lr:(1.000e-04,4.000e-04,)] [eta: 19:24:42, time (data): 0.335 (0.001)] l_codebook: 2.3444e-01 l_semantic: 0.0000e+00 l_pix: 7.0204e-02 l_percep: 5.2567e-01 l_g_gan: 4.2683e-02 l_d_real: 1.3479e+00 out_d_real: -3.4761e-01 l_d_fake: 5.7454e-01 out_d_fake: -4.2683e-01 
+2023-07-25 11:30:19,303 INFO: [016_F..][epoch:  0, iter:   6,600, lr:(1.000e-04,4.000e-04,)] [eta: 19:22:49, time (data): 0.335 (0.001)] l_codebook: 2.0771e-01 l_semantic: 0.0000e+00 l_pix: 6.0852e-02 l_percep: 5.4710e-01 l_g_gan: 5.4339e-02 l_d_real: 1.2744e+00 out_d_real: -2.7004e-01 l_d_fake: 4.5722e-01 out_d_fake: -5.4339e-01 
+2023-07-25 11:30:52,857 INFO: [016_F..][epoch:  0, iter:   6,700, lr:(1.000e-04,4.000e-04,)] [eta: 19:21:00, time (data): 0.335 (0.001)] l_codebook: 1.9918e-01 l_semantic: 0.0000e+00 l_pix: 7.7850e-02 l_percep: 4.8785e-01 l_g_gan: 3.5380e-02 l_d_real: 1.1122e+00 out_d_real: -1.0713e-01 l_d_fake: 6.4784e-01 out_d_fake: -3.5379e-01 
+2023-07-25 11:31:26,329 INFO: [016_F..][epoch:  0, iter:   6,800, lr:(1.000e-04,4.000e-04,)] [eta: 19:19:12, time (data): 0.335 (0.001)] l_codebook: 1.8666e-01 l_semantic: 0.0000e+00 l_pix: 8.0264e-02 l_percep: 5.0274e-01 l_g_gan: 2.0866e-02 l_d_real: 1.3722e+00 out_d_real: -3.7167e-01 l_d_fake: 7.9220e-01 out_d_fake: -2.0866e-01 
+2023-07-25 11:31:59,828 INFO: [016_F..][epoch:  0, iter:   6,900, lr:(1.000e-04,4.000e-04,)] [eta: 19:17:26, time (data): 0.335 (0.001)] l_codebook: 2.5736e-01 l_semantic: 0.0000e+00 l_pix: 1.1086e-01 l_percep: 5.2809e-01 l_g_gan: 4.1382e-03 l_d_real: 1.0124e+00 out_d_real: -2.3771e-03 l_d_fake: 9.5948e-01 out_d_fake: -4.1388e-02 
+2023-07-25 11:32:33,326 INFO: [016_F..][epoch:  0, iter:   7,000, lr:(1.000e-04,4.000e-04,)] [eta: 19:15:42, time (data): 0.335 (0.001)] l_codebook: 2.1725e-01 l_semantic: 0.0000e+00 l_pix: 6.3008e-02 l_percep: 4.6719e-01 l_g_gan: 4.2141e-02 l_d_real: 1.3155e+00 out_d_real: -3.0214e-01 l_d_fake: 5.8248e-01 out_d_fake: -4.2141e-01 
+2023-07-25 11:33:07,657 INFO: [016_F..][epoch:  0, iter:   7,100, lr:(1.000e-04,4.000e-04,)] [eta: 19:14:22, time (data): 0.335 (0.001)] l_codebook: 2.1177e-01 l_semantic: 0.0000e+00 l_pix: 9.2764e-02 l_percep: 5.2673e-01 l_g_gan: -3.6729e-03 l_d_real: 1.0592e+00 out_d_real: -2.9013e-02 l_d_fake: 1.0380e+00 out_d_fake: 3.6722e-02 
+2023-07-25 11:33:41,132 INFO: [016_F..][epoch:  0, iter:   7,200, lr:(1.000e-04,4.000e-04,)] [eta: 19:12:41, time (data): 0.335 (0.001)] l_codebook: 1.9790e-01 l_semantic: 0.0000e+00 l_pix: 7.7343e-02 l_percep: 5.0313e-01 l_g_gan: 3.2846e-02 l_d_real: 1.3019e+00 out_d_real: -3.0111e-01 l_d_fake: 6.7276e-01 out_d_fake: -3.2846e-01 
+2023-07-25 11:34:14,665 INFO: [016_F..][epoch:  0, iter:   7,300, lr:(1.000e-04,4.000e-04,)] [eta: 19:11:04, time (data): 0.335 (0.001)] l_codebook: 1.9759e-01 l_semantic: 0.0000e+00 l_pix: 7.2434e-02 l_percep: 4.9585e-01 l_g_gan: 3.2149e-02 l_d_real: 1.2412e+00 out_d_real: -2.2610e-01 l_d_fake: 6.7881e-01 out_d_fake: -3.2148e-01 
+2023-07-25 11:34:48,257 INFO: [016_F..][epoch:  0, iter:   7,400, lr:(1.000e-04,4.000e-04,)] [eta: 19:09:29, time (data): 0.336 (0.001)] l_codebook: 1.8388e-01 l_semantic: 0.0000e+00 l_pix: 7.8008e-02 l_percep: 4.8882e-01 l_g_gan: 1.3453e-02 l_d_real: 1.0970e+00 out_d_real: -8.6931e-02 l_d_fake: 8.6567e-01 out_d_fake: -1.3453e-01 
+2023-07-25 11:35:21,757 INFO: [016_F..][epoch:  0, iter:   7,500, lr:(1.000e-04,4.000e-04,)] [eta: 19:07:54, time (data): 0.335 (0.001)] l_codebook: 1.9608e-01 l_semantic: 0.0000e+00 l_pix: 6.6830e-02 l_percep: 4.6312e-01 l_g_gan: 4.4901e-02 l_d_real: 1.3036e+00 out_d_real: -2.9272e-01 l_d_fake: 5.5691e-01 out_d_fake: -4.4900e-01 
+2023-07-25 11:35:55,271 INFO: [016_F..][epoch:  0, iter:   7,600, lr:(1.000e-04,4.000e-04,)] [eta: 19:06:21, time (data): 0.335 (0.001)] l_codebook: 1.9455e-01 l_semantic: 0.0000e+00 l_pix: 8.5493e-02 l_percep: 4.8368e-01 l_g_gan: 3.0169e-03 l_d_real: 1.1450e+00 out_d_real: -1.4217e-01 l_d_fake: 9.6994e-01 out_d_fake: -3.0169e-02 
+2023-07-25 11:36:28,767 INFO: [016_F..][epoch:  0, iter:   7,700, lr:(1.000e-04,4.000e-04,)] [eta: 19:04:49, time (data): 0.335 (0.001)] l_codebook: 2.1443e-01 l_semantic: 0.0000e+00 l_pix: 8.6751e-02 l_percep: 5.1642e-01 l_g_gan: 6.0707e-03 l_d_real: 1.0676e+00 out_d_real: -2.7342e-02 l_d_fake: 9.4681e-01 out_d_fake: -6.0716e-02 
+2023-07-25 11:37:02,280 INFO: [016_F..][epoch:  0, iter:   7,800, lr:(1.000e-04,4.000e-04,)] [eta: 19:03:19, time (data): 0.335 (0.001)] l_codebook: 2.2996e-01 l_semantic: 0.0000e+00 l_pix: 6.2452e-02 l_percep: 5.1140e-01 l_g_gan: 1.9804e-02 l_d_real: 1.2535e+00 out_d_real: -2.4614e-01 l_d_fake: 8.0224e-01 out_d_fake: -1.9807e-01 
+2023-07-25 11:37:35,775 INFO: [016_F..][epoch:  0, iter:   7,900, lr:(1.000e-04,4.000e-04,)] [eta: 19:01:50, time (data): 0.335 (0.001)] l_codebook: 2.2927e-01 l_semantic: 0.0000e+00 l_pix: 6.8490e-02 l_percep: 4.9774e-01 l_g_gan: 2.9111e-02 l_d_real: 1.4304e+00 out_d_real: -4.2944e-01 l_d_fake: 7.0926e-01 out_d_fake: -2.9110e-01 

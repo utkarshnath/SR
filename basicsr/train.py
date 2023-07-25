@@ -239,6 +239,8 @@ def train_pipeline(root_path):
 
 
 if __name__ == '__main__':
-    root_path = osp.abspath(osp.join(__file__, osp.pardir, osp.pardir))
+    #root_path = osp.abspath(osp.join(__file__, osp.pardir, osp.pardir))
+    #print("root_path", root_path)
+    root_path = '/scratch/vgunda8/FeMaSR/stage2'
     train_pipeline(root_path)
 

@@ -1,0 +1,9 @@
+# conda environments:
+#
+base                  *  /home/vgunda8/anaconda3
+femasr                   /home/vgunda8/anaconda3/envs/femasr
+
+Loading pretrained model LPIPS from /home/vgunda8/.cache/torch/hub/checkpoints/LPIPS_v0.1_alex-df73285e.pth
+Downloading: "https://github.com/chaofengc/FeMaSR/releases/download/v0.1-pretrain_models/FeMaSR_HRP_model_d.pth" to /scratch/vgunda8/FeMaSR/stage2/experiments/pretrained_models/FeMaSR_HRP_model_d.pth
+
+Loading pretrained model LPIPS from /home/vgunda8/.cache/torch/hub/checkpoints/LPIPS_v0.1_vgg-a78928a0.pth

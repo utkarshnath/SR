@@ -669,6 +669,7 @@ def degradation_bsrgan(img, sf=4, lq_patchsize=72, isp_model=None, use_crop=True
     return img, hq
 
 
+
 def degradation_bsrgan_plus(img, sf=4, shuffle_prob=0.5, use_sharp=True, lq_patchsize=64, isp_model=None, crop=True):
     """
     This is an extended degradation model by combining

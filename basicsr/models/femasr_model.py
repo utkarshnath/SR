@@ -287,7 +287,7 @@ class FeMaSRModel(BaseModel):
 
             if with_metrics:
                 # calculate metrics
-                for name, opt_ in self.opt['val']['metrics'].items():
+                for name, opt_ in self.opt['val']['metrics'].items():                    
                     tmp_result = self.metric_funcs[name](*metric_data)
                     self.metric_results[name] += tmp_result.item() 
 

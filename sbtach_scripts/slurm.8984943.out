@@ -1,0 +1,7 @@
+# conda environments:
+#
+base                  *  /home/vgunda8/anaconda3
+femasr                   /home/vgunda8/anaconda3/envs/femasr
+
+Loading pretrained model LPIPS from /home/vgunda8/.cache/torch/hub/checkpoints/LPIPS_v0.1_alex-df73285e.pth
+Loading pretrained model LPIPS from /home/vgunda8/.cache/torch/hub/checkpoints/LPIPS_v0.1_vgg-a78928a0.pth
