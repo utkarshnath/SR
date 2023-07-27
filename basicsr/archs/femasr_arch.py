@@ -29,6 +29,12 @@ class VectorQuantizer(nn.Module):
         self.e_dim = int(e_dim)
         self.LQ_stage = LQ_stage
         self.beta = beta 
+
+        self.embedding_block1 = nn.Embedding(self.n_e, self.e_dim)
+        self.embedding_block2 = nn.Embedding(self.n_e, self.e_dim)
+        self.embedding_block1.weight.data.uniform_(-1.0 / self.n_e, 1.0 / self.n_e)
+        self.embedding_block2.weight.data.uniform_(-1.0 / self.n_e, 1.0 / self.n_e)
+
         self.embedding = nn.Embedding(self.n_e, self.e_dim)
         self.embedding.weight.data.uniform_(-1.0 / self.n_e, 1.0 / self.n_e)
     
@@ -47,7 +53,7 @@ class VectorQuantizer(nn.Module):
     
         return (gmx - gmy).square().mean()
 
-    def forward(self, z, gt_indices=None, current_iter=None):
+    def forward(self, z, gt_indices=None, current_iter=None, z_block1=None, z_block2=None):
         """
         Args:
             z: input features to be quantized, z (continuous) -> z_q (discrete)
@@ -58,14 +64,34 @@ class VectorQuantizer(nn.Module):
         z = z.permute(0, 2, 3, 1).contiguous()
         z_flattened = z.view(-1, self.e_dim)
 
+        z_block1 = z_block1.permute(0, 2, 3, 1).contiguous()
+        z_block1_flattened = z_block1.view(-1, self.e_dim)
+
+        z_block2 = z_block2.permute(0, 2, 3, 1).contiguous()
+        z_block2_flattened = z_block2.view(-1, self.e_dim)
+
         codebook = self.embedding.weight
+        codebook_block1 = self.embedding_block1.weight
+        codebook_block2 = self.embedding_block2.weight
 
         d = self.dist(z_flattened, codebook)
-        
+        d_block1 = self.dist(z_block1_flattened, codebook_block1)
+        d_block2 = self.dist(z_block2_flattened, codebook_block2)
+
         # find closest encodings
         min_encoding_indices = torch.argmin(d, dim=1).unsqueeze(1)
         min_encodings = torch.zeros(min_encoding_indices.shape[0], codebook.shape[0]).to(z)
         min_encodings.scatter_(1, min_encoding_indices, 1)
+
+        # find closest encodings block1
+        min_encoding_indices_block1 = torch.argmin(d_block1, dim=1).unsqueeze(1)
+        min_encodings_block1 = torch.zeros(min_encoding_indices_block1.shape[0], codebook_block1.shape[0]).to(z_block1)
+        min_encodings_block1.scatter_(1, min_encoding_indices_block1, 1)
+
+        # find closest encodings block2
+        min_encoding_indices_block2 = torch.argmin(d_block2, dim=1).unsqueeze(1)
+        min_encodings_block2 = torch.zeros(min_encoding_indices_block2.shape[0], codebook_block2.shape[0]).to(z_block2)
+        min_encodings_block2.scatter_(1, min_encoding_indices_block2, 1)
 
         if gt_indices is not None:
             gt_indices = gt_indices.reshape(-1)
@@ -81,6 +107,16 @@ class VectorQuantizer(nn.Module):
         z_q = torch.matmul(min_encodings, codebook)
         z_q = z_q.view(z.shape)
 
+        z_q_block1 = torch.matmul(min_encodings_block1, codebook_block1)
+        z_q_block1 = z_q_block1.view(z_block1.shape)
+
+        z_q_block2 = torch.matmul(min_encodings_block2, codebook_block2)
+        z_q_block2 = z_q_block2.view(z_block2.shape)
+
+        z_q += z_q_block1 + z_q_block2
+
+        z += z_block1 + z_block2
+
         e_latent_loss = torch.mean((z_q.detach() - z)**2)
         q_latent_loss = torch.mean((z_q - z.detach())**2)
 
@@ -93,6 +129,7 @@ class VectorQuantizer(nn.Module):
 
         # preserve gradients
         z_q = z + (z_q - z).detach()
+        #z_q = z + z_block1 + z_block2 + (z_q - (z + z_block1 + z_block2)).detach()
 
         # reshape back to match original input shape
         z_q = z_q.permute(0, 3, 1, 2).contiguous()
@@ -275,6 +312,8 @@ class FeMaSRNet(nn.Module):
         # build multi-scale vector quantizers 
         self.quantize_group = nn.ModuleList()
         self.before_quant_group = nn.ModuleList()
+        self.before_quant_group_block1 = nn.ModuleList()
+        self.before_quant_group_block2 = nn.ModuleList()
         self.after_quant_group = nn.ModuleList()
 
         for scale in range(0, codebook_params.shape[0]):
@@ -296,6 +335,11 @@ class FeMaSRNet(nn.Module):
                 comb_quant_in_ch2 = codebook_emb_dim[scale]
 
             self.before_quant_group.append(nn.Conv2d(quant_conv_in_ch, codebook_emb_dim[scale], 1))
+            self.before_quant_group_block1.append(nn.Conv2d(quant_conv_in_ch//2, codebook_emb_dim[scale]//2, 3, 2, 1)) 
+            self.before_quant_group_block1.append(nn.ReLU())
+            self.before_quant_group_block1.append(nn.Conv2d(codebook_emb_dim[scale]//2, codebook_emb_dim[scale], 3, 2, 1)) 
+    
+            self.before_quant_group_block2.append(nn.Conv2d(quant_conv_in_ch, codebook_emb_dim[scale], 3, 2, 1)) 
             self.after_quant_group.append(CombineQuantBlock(comb_quant_in_ch1, comb_quant_in_ch2, scale_in_ch))
 
         # semantic loss for HQ pretrain stage
@@ -335,11 +379,16 @@ class FeMaSRNet(nn.Module):
                 else:
                     before_quant_feat = enc_feats[i]
                 feat_to_quant = self.before_quant_group[quant_idx](before_quant_feat)
+                feat_to_quant_block1 = self.before_quant_group_block1[quant_idx](enc_feats[i+2])
+                feat_to_quant_block1 = self.before_quant_group_block1[1](feat_to_quant_block1)
+                feat_to_quant_block1 = self.before_quant_group_block1[2](feat_to_quant_block1)
 
+                feat_to_quant_block2 = self.before_quant_group_block2[quant_idx](enc_feats[i+1])
+                
                 if gt_indices is not None:
                     z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant, gt_indices[quant_idx])
                 else:
-                    z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant)
+                    z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant, z_block1=feat_to_quant_block1, z_block2=feat_to_quant_block2)
 
                 if self.use_semantic_loss:
                     semantic_z_quant = self.conv_semantic(z_quant)
