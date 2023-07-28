@@ -64,58 +64,89 @@ class VectorQuantizer(nn.Module):
         z = z.permute(0, 2, 3, 1).contiguous()
         z_flattened = z.view(-1, self.e_dim)
 
-        z_block1 = z_block1.permute(0, 2, 3, 1).contiguous()
-        z_block1_flattened = z_block1.view(-1, self.e_dim)
-
-        z_block2 = z_block2.permute(0, 2, 3, 1).contiguous()
-        z_block2_flattened = z_block2.view(-1, self.e_dim)
-
         codebook = self.embedding.weight
         codebook_block1 = self.embedding_block1.weight
         codebook_block2 = self.embedding_block2.weight
 
         d = self.dist(z_flattened, codebook)
-        d_block1 = self.dist(z_block1_flattened, codebook_block1)
-        d_block2 = self.dist(z_block2_flattened, codebook_block2)
 
         # find closest encodings
         min_encoding_indices = torch.argmin(d, dim=1).unsqueeze(1)
         min_encodings = torch.zeros(min_encoding_indices.shape[0], codebook.shape[0]).to(z)
         min_encodings.scatter_(1, min_encoding_indices, 1)
 
+        if gt_indices is None:
+           if z_block1 is None:
+               # testing 2nd stage
+               d_block1 = self.dist(z_flattened, codebook_block1)
+               d_block2 = self.dist(z_flattened, codebook_block2)
+           else:
+               z_block1 = z_block1.permute(0, 2, 3, 1).contiguous()
+               z_block1_flattened = z_block1.view(-1, self.e_dim)
+
+               z_block2 = z_block2.permute(0, 2, 3, 1).contiguous()
+               z_block2_flattened = z_block2.view(-1, self.e_dim)
+
+               d_block1 = self.dist(z_block1_flattened, codebook_block1)
+               d_block2 = self.dist(z_block2_flattened, codebook_block2)
+        else:
+            d_block1 = self.dist(z_flattened, codebook_block1)
+            d_block2 = self.dist(z_flattened, codebook_block2) 
+
         # find closest encodings block1
         min_encoding_indices_block1 = torch.argmin(d_block1, dim=1).unsqueeze(1)
-        min_encodings_block1 = torch.zeros(min_encoding_indices_block1.shape[0], codebook_block1.shape[0]).to(z_block1)
+        min_encodings_block1 = torch.zeros(min_encoding_indices_block1.shape[0], codebook_block1.shape[0]).to(z)
         min_encodings_block1.scatter_(1, min_encoding_indices_block1, 1)
 
         # find closest encodings block2
         min_encoding_indices_block2 = torch.argmin(d_block2, dim=1).unsqueeze(1)
-        min_encodings_block2 = torch.zeros(min_encoding_indices_block2.shape[0], codebook_block2.shape[0]).to(z_block2)
+        min_encodings_block2 = torch.zeros(min_encoding_indices_block2.shape[0], codebook_block2.shape[0]).to(z)
         min_encodings_block2.scatter_(1, min_encoding_indices_block2, 1)
 
+        z_q_block1 = torch.matmul(min_encodings_block1, codebook_block1)
+        z_q_block1 = z_q_block1.view(z.shape)
+
+        z_q_block2 = torch.matmul(min_encodings_block2, codebook_block2)
+        z_q_block2 = z_q_block2.view(z.shape)
+
         if gt_indices is not None:
-            gt_indices = gt_indices.reshape(-1)
+            gt_indices_z = gt_indices[0].reshape(-1)
+            gt_indices_z_block1 = gt_indices[1].reshape(-1)
+            gt_indices_z_block2 = gt_indices[2].reshape(-1)
 
-            gt_min_indices = gt_indices.reshape_as(min_encoding_indices)
-            gt_min_onehot = torch.zeros(gt_min_indices.shape[0], codebook.shape[0]).to(z)
-            gt_min_onehot.scatter_(1, gt_min_indices, 1)
+            gt_min_indices_z = gt_indices_z.reshape_as(min_encoding_indices)
+            gt_min_onehot_z = torch.zeros(gt_min_indices_z.shape[0], codebook.shape[0]).to(z)
+            gt_min_onehot_z.scatter_(1, gt_min_indices_z, 1)
 
-            z_q_gt = torch.matmul(gt_min_onehot, codebook)
+            gt_min_indices_z_block1 = gt_indices_z_block1.reshape_as(min_encoding_indices)
+            gt_min_onehot_z_block1 = torch.zeros(gt_min_indices_z_block1.shape[0], codebook.shape[0]).to(z)
+            gt_min_onehot_z_block1.scatter_(1, gt_min_indices_z_block1, 1)
+
+            gt_min_indices_z_block2 = gt_indices_z_block2.reshape_as(min_encoding_indices)
+            gt_min_onehot_z_block2 = torch.zeros(gt_min_indices_z_block2.shape[0], codebook.shape[0]).to(z)
+            gt_min_onehot_z_block2.scatter_(1, gt_min_indices_z_block2, 1)
+
+            z_q_gt = torch.matmul(gt_min_onehot_z, codebook)
             z_q_gt = z_q_gt.view(z.shape)
+
+            z_q_gt_block1 = torch.matmul(gt_min_onehot_z_block1, codebook_block1)
+            z_q_gt_block1 = z_q_gt_block1.view(z.shape)
+
+            z_q_gt_block2 = torch.matmul(gt_min_onehot_z_block2, codebook_block2)
+            z_q_gt_block2 = z_q_gt_block2.view(z.shape)
+
+            z_q_gt += z_q_gt_block1 + z_q_gt_block2 
+
 
         # get quantized latent vectors
         z_q = torch.matmul(min_encodings, codebook)
         z_q = z_q.view(z.shape)
 
-        z_q_block1 = torch.matmul(min_encodings_block1, codebook_block1)
-        z_q_block1 = z_q_block1.view(z_block1.shape)
-
-        z_q_block2 = torch.matmul(min_encodings_block2, codebook_block2)
-        z_q_block2 = z_q_block2.view(z_block2.shape)
-
         z_q += z_q_block1 + z_q_block2
-
-        z += z_block1 + z_block2
+        if gt_indices is None:
+           #z_q += z_q_block1 + z_q_block2
+           if z_block1 is not None:
+              z += z_block1 + z_block2
 
         e_latent_loss = torch.mean((z_q.detach() - z)**2)
         q_latent_loss = torch.mean((z_q - z.detach())**2)
@@ -134,7 +165,14 @@ class VectorQuantizer(nn.Module):
         # reshape back to match original input shape
         z_q = z_q.permute(0, 3, 1, 2).contiguous()
 
-        return z_q, codebook_loss, min_encoding_indices.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+        z_q_indexes = min_encoding_indices.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+
+        if gt_indices is None:
+            z_q_block1_indexes = min_encoding_indices_block1.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+            z_q_block2_indexes = min_encoding_indices_block2.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+            return z_q, codebook_loss, [z_q_indexes, z_q_block1_indexes, z_q_block2_indexes]
+        else:
+            return z_q, codebook_loss, [z_q_indexes]
     
     def get_codebook_entry(self, indices):
         b, _, h, w = indices.shape
@@ -379,16 +417,21 @@ class FeMaSRNet(nn.Module):
                 else:
                     before_quant_feat = enc_feats[i]
                 feat_to_quant = self.before_quant_group[quant_idx](before_quant_feat)
-                feat_to_quant_block1 = self.before_quant_group_block1[quant_idx](enc_feats[i+2])
-                feat_to_quant_block1 = self.before_quant_group_block1[1](feat_to_quant_block1)
-                feat_to_quant_block1 = self.before_quant_group_block1[2](feat_to_quant_block1)
+                
+                if gt_indices is None and not self.LQ_stage:
+                   feat_to_quant_block1 = self.before_quant_group_block1[quant_idx](enc_feats[i+2])
+                   feat_to_quant_block1 = self.before_quant_group_block1[1](feat_to_quant_block1)
+                   feat_to_quant_block1 = self.before_quant_group_block1[2](feat_to_quant_block1)
 
-                feat_to_quant_block2 = self.before_quant_group_block2[quant_idx](enc_feats[i+1])
+                   feat_to_quant_block2 = self.before_quant_group_block2[quant_idx](enc_feats[i+1])
                 
                 if gt_indices is not None:
                     z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant, gt_indices[quant_idx])
                 else:
-                    z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant, z_block1=feat_to_quant_block1, z_block2=feat_to_quant_block2)
+                    if self.LQ_stage:
+                        z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant)
+                    else:
+                        z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant, z_block1=feat_to_quant_block1, z_block2=feat_to_quant_block2)
 
                 if self.use_semantic_loss:
                     semantic_z_quant = self.conv_semantic(z_quant)

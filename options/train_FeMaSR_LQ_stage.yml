@@ -1,5 +1,5 @@
 # general settings
-name: 016_FeMaSR_LQ_stage
+name: 017_FeMaSR_LQ_stage
 # name: debug_FeMaSR
 model_type: FeMaSRModel 
 scale: &upscale 4
@@ -64,12 +64,14 @@ network_d:
 
 # path
 path:
-  pretrain_network_hq: /scratch/vgunda8/FeMaSR/stage1/experiments/008_FeMaSR_HQ_stage/models/net_g_best_.pth
+  #pretrain_network_hq: /scratch/vgunda8/FeMaSR/stage1/experiments/008_FeMaSR_HQ_stage/models/net_g_best_.pth
+  pretrain_network_hq: /scratch/vgunda8/FeMaSR/stage2/experiments/008_FeMaSR_HQ_stage/models/net_g_best_.pth
   pretrain_network_g: ~
+  pretrain_network_d: /scratch/vgunda8/FeMaSR/stage2/experiments/008_FeMaSR_HQ_stage/models/net_d_best_.pth
   #pretrain_network_d: /scratch/vgunda8/FeMaSR/stage1/experiments/008_FeMaSR_HQ_stage/models/net_d_best_.pth
   #pretrain_network_hq: https://github.com/chaofengc/FeMaSR/releases/download/v0.1-pretrain_models/FeMaSR_HRP_model_g.pth 
   #pretrain_network_g: ~
-  pretrain_network_d: https://github.com/chaofengc/FeMaSR/releases/download/v0.1-pretrain_models/FeMaSR_HRP_model_d.pth
+  #pretrain_network_d: https://github.com/chaofengc/FeMaSR/releases/download/v0.1-pretrain_models/FeMaSR_HRP_model_d.pth
   strict_load: false 
   # resume_state: ~
 
