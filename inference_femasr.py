@@ -50,7 +50,9 @@ def main():
         weight_path = load_file_from_url(pretrain_model_url[f'x{args.out_scale}'])
     else:
         weight_path = args.w
-    
+   
+    weight_path = "/scratch/vgunda8/FeMaSR/stage2/experiments/015_FeMaSR_LQ_stage/models/net_g_latest.pth"
+
     # set up the model
     sr_model = FeMaSRNet(codebook_params=[[32, 1024, 512]], LQ_stage=True, scale_factor=args.out_scale).to(device)
     sr_model.load_state_dict(torch.load(weight_path)['params'], strict=False)
@@ -94,7 +96,7 @@ def main():
         img_tensor = img_tensor.unsqueeze(0)
 
         max_size = args.max_size ** 2 
-        print(img_tensor.shape)
+        #print(img_tensor.shape)
         h, w = img_tensor.shape[2:]
         if h * w < max_size: 
             output = sr_model.test(img_tensor)

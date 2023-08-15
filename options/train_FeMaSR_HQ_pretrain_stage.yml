@@ -1,5 +1,5 @@
 # general settings
-name: 008_FeMaSR_HQ_stage
+name: 008_FeMaSR_HQ_stage_match_selection
 # name: debug_FeMaSR
 model_type: FeMaSRModel 
 scale: 4
@@ -113,7 +113,7 @@ train:
 
 # validation settings·
 val:
-  val_freq: !!float 2e4 
+  val_freq: !!float 5e4 
   save_img: false 
 
   key_metric: lpips

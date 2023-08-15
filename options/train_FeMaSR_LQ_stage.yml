@@ -1,5 +1,5 @@
 # general settings
-name: 017_FeMaSR_LQ_stage
+name: 019_FeMaSR_LQ_stage_vanilla_Codebook_with_Match_Selection_v2_k1
 # name: debug_FeMaSR
 model_type: FeMaSRModel 
 scale: &upscale 4
@@ -66,11 +66,11 @@ network_d:
 path:
   #pretrain_network_hq: /scratch/vgunda8/FeMaSR/stage1/experiments/008_FeMaSR_HQ_stage/models/net_g_best_.pth
   pretrain_network_hq: /scratch/vgunda8/FeMaSR/stage2/experiments/008_FeMaSR_HQ_stage/models/net_g_best_.pth
-  pretrain_network_g: ~
+  #pretrain_network_g: /scratch/vgunda8/FeMaSR/stage2/experiments/018_FeMaSR_LQ_stage_Hierarchical_Codebook_wit_Match_Selection_v1_k1/models/net_g_best_.pth
   pretrain_network_d: /scratch/vgunda8/FeMaSR/stage2/experiments/008_FeMaSR_HQ_stage/models/net_d_best_.pth
   #pretrain_network_d: /scratch/vgunda8/FeMaSR/stage1/experiments/008_FeMaSR_HQ_stage/models/net_d_best_.pth
   #pretrain_network_hq: https://github.com/chaofengc/FeMaSR/releases/download/v0.1-pretrain_models/FeMaSR_HRP_model_g.pth 
-  #pretrain_network_g: ~
+  pretrain_network_g: ~
   #pretrain_network_d: https://github.com/chaofengc/FeMaSR/releases/download/v0.1-pretrain_models/FeMaSR_HRP_model_d.pth
   strict_load: false 
   # resume_state: ~
@@ -126,10 +126,10 @@ train:
 
 # validation settings·
 val:
-  val_freq: !!float 5e3
+  val_freq: !!float 5000
   save_img: true
 
-  key_metric: lpips
+  key_metric: psnr
   metrics:
     psnr: # metric name, can be arbitrary
       type: psnr 

@@ -13,7 +13,7 @@ from .base_model import BaseModel
 import copy
 
 import pyiqa
-
+import numpy as np
 
 @MODEL_REGISTRY.register()
 class FeMaSRModel(BaseModel):
@@ -51,8 +51,12 @@ class FeMaSRModel(BaseModel):
                 for name, module in self.net_g.named_modules():
                     for fkw in frozen_module_keywords:
                         if fkw in name:
-                            for p in module.parameters():
-                                p.requires_grad = False
+                            for pname, p in module.named_parameters():
+                                if ('maskConv' in pname) or ('attnConv' in pname):
+                                    print("************", pname, "****************")
+                                    p.requires_grad = True
+                                else:
+                                    p.requires_grad = False
                             break
 
         # load pretrained models
@@ -111,11 +115,14 @@ class FeMaSRModel(BaseModel):
     def setup_optimizers(self):
         train_opt = self.opt['train']
         optim_params = []
+
         for k, v in self.net_g.named_parameters():
+            if (('attnConv' in k) or ('maskConv' in k)):
+                v.requires_grad = True
             optim_params.append(v)
             if not v.requires_grad:
                 logger = get_root_logger()
-                logger.warning(f'Params {k} will not be optimized.')
+                logger.warning(f'Params in net_g {k} will not be optimized.')
 
         # optimizer g
         optim_type = train_opt['optim_g'].pop('type')
@@ -141,13 +148,21 @@ class FeMaSRModel(BaseModel):
             p.requires_grad = False
         self.optimizer_g.zero_grad()
 
+        total_iter = self.opt['train'].get('total_iter')
+        tau_no = np.floor((current_iter/total_iter) * 10)
+        tau = 5 * (0.9)**tau_no
+
         if self.LQ_stage:
             with torch.no_grad():
                 self.gt_rec, _, _, gt_indices = self.net_hq(self.gt)
 
-            self.output, l_codebook, l_semantic, _ = self.net_g(self.lq, gt_indices) 
+            #for p in self.net_g.named_parameters():
+
+            #print("*********** self.LQ_stage ********")
+            self.output, l_codebook, l_semantic, _ = self.net_g(self.lq, gt_indices, tau=tau) 
+            #print("*********** self.LQ_stage ********")
         else:
-            self.output, l_codebook, l_semantic, _ = self.net_g(self.gt) 
+            self.output, l_codebook, l_semantic, _ = self.net_g(self.gt, tau=tau) 
 
         l_g_total = 0
         loss_dict = OrderedDict()

@@ -37,7 +37,17 @@ class VectorQuantizer(nn.Module):
 
         self.embedding = nn.Embedding(self.n_e, self.e_dim)
         self.embedding.weight.data.uniform_(-1.0 / self.n_e, 1.0 / self.n_e)
-    
+
+        self.k = 1
+        self.maskConv = nn.Conv2d(self.e_dim, 2*self.k, 1)
+        #self.attnConv = nn.Conv2d(self.e_dim, self.k, 1)
+
+        self.maskConv1 = nn.Conv2d(self.e_dim, 2*self.k, 1)
+        #self.attnConv1 = nn.Conv2d(self.e_dim, self.k, 1)
+
+        self.maskConv2 = nn.Conv2d(self.e_dim, 2*self.k, 1)
+        #self.attnConv2 = nn.Conv2d(self.e_dim, self.k, 1)
+
     def dist(self, x, y):
         return torch.sum(x ** 2, dim=1, keepdim=True) + \
                     torch.sum(y**2, dim=1) - 2 * \
@@ -53,14 +63,77 @@ class VectorQuantizer(nn.Module):
     
         return (gmx - gmy).square().mean()
 
-    def forward(self, z, gt_indices=None, current_iter=None, z_block1=None, z_block2=None):
+    def get_min_encoddings(self, d, k, z, codebook):
+        min_encoding_indices = torch.topk(d, k, dim=1, largest=False)[1]
+        min_encoding_indices_flattened = min_encoding_indices.reshape(-1,1)
+        min_encodings = torch.zeros(min_encoding_indices_flattened.shape[0], codebook.shape[0]).to(z)
+        min_encodings = torch.zeros(k * d.shape[0], codebook.shape[0]).to(z)
+        min_encodings.scatter_(1, min_encoding_indices_flattened, 1)
+        min_encodings = min_encodings.reshape(d.shape[0], k, codebook.shape[0])
+        min_encodings = min_encodings.permute(1, 0, 2)
+        return min_encodings, min_encoding_indices
+   
+
+    def get_code_weights(self, book_no, z, k, lq_train, tau=0.1):
+        if book_no==0:
+            gumbel_logits = self.maskConv(z)
+            #attn = self.attnConv(z).reshape(-1, k)
+        elif book_no==1:
+            gumbel_logits = self.maskConv1(z)
+            #attn = self.attnConv1(z).reshape(-1, k)
+        elif book_no==2:
+            gumbel_logits = self.maskConv2(z)
+            #attn = self.attnConv2(z).reshape(-1, k)
+
+        gumbel_logits = gumbel_logits.permute(0,2,3,1)
+        gumbel_logits = gumbel_logits.view(z.shape[0],z.shape[2],z.shape[3], k, 2)
+        if lq_train:
+            mask = F.gumbel_softmax(gumbel_logits, tau=tau, hard=False, dim=-1)[:,:,:,:,0]
+        else:
+            mask = F.gumbel_softmax(gumbel_logits, tau=tau, hard=False, dim=-1)[:,:,:,:,0]
+        mask = mask.reshape(-1, k)
+        #print(self.maskConv.weight.data.sum())
+        #print(self.maskConv1.weight.data.sum())
+        #print(self.maskConv2.weight.data.sum())
+        #print(self.embedding.weight.data.sum())
+
+        #w = (torch.exp(attn) * mask)/(torch.exp(attn) * mask).sum(1)[:, None]
+        #w = w.permute(1,0)[:,:,None]
+        w = mask/mask.sum(1)[:,None]
+        w = mask.permute(1,0)[:,:,None]
+
+        #print(self.attnConv2.weight.requires_grad)
+        #print("atten", self.attnConv2.weight.data.sum())
+        #print("mask", self.maskConv2.weight.data.sum())
+        #print("w", w.shape)
+        #print(w[:,:10])
+        return w
+    
+
+    def forward(self, z, gt_indices=None, current_iter=None, z_block1=None, z_block2=None, tau=5):
+        # HQ -> gt_indices==None z_block1!=None
+        # LQ training -> gt_indices!=None
+        # LQ testing -> gt_indices==None z_block1==None
         """
         Args:
             z: input features to be quantized, z (continuous) -> z_q (discrete)
                z.shape = (batch, channel, height, width)
             gt_indices: feature map of given indices, used for visualization. 
         """
+        k = self.k
         # reshape z -> (batch, height, width, channel) and flatten
+        lq_train = gt_indices!=None
+        lq = (gt_indices!=None) or (z_block1==None)
+        if lq:
+            w = self.get_code_weights(0, z, k, lq_train, tau=tau)
+            w1 = self.get_code_weights(1, z, k, lq_train, tau=tau)
+            w2 = self.get_code_weights(2, z, k, lq_train, tau=tau)
+        else:
+            w = self.get_code_weights(0, z, k, lq_train, tau=tau)
+            w1 = self.get_code_weights(1, z_block1, k, lq_train, tau=tau)
+            w2 = self.get_code_weights(2, z_block2, k, lq_train, tau=tau)
+
+        
         z = z.permute(0, 2, 3, 1).contiguous()
         z_flattened = z.view(-1, self.e_dim)
 
@@ -69,11 +142,6 @@ class VectorQuantizer(nn.Module):
         codebook_block2 = self.embedding_block2.weight
 
         d = self.dist(z_flattened, codebook)
-
-        # find closest encodings
-        min_encoding_indices = torch.argmin(d, dim=1).unsqueeze(1)
-        min_encodings = torch.zeros(min_encoding_indices.shape[0], codebook.shape[0]).to(z)
-        min_encodings.scatter_(1, min_encoding_indices, 1)
 
         if gt_indices is None:
            if z_block1 is None:
@@ -93,36 +161,49 @@ class VectorQuantizer(nn.Module):
             d_block1 = self.dist(z_flattened, codebook_block1)
             d_block2 = self.dist(z_flattened, codebook_block2) 
 
-        # find closest encodings block1
-        min_encoding_indices_block1 = torch.argmin(d_block1, dim=1).unsqueeze(1)
-        min_encodings_block1 = torch.zeros(min_encoding_indices_block1.shape[0], codebook_block1.shape[0]).to(z)
-        min_encodings_block1.scatter_(1, min_encoding_indices_block1, 1)
 
-        # find closest encodings block2
-        min_encoding_indices_block2 = torch.argmin(d_block2, dim=1).unsqueeze(1)
-        min_encodings_block2 = torch.zeros(min_encoding_indices_block2.shape[0], codebook_block2.shape[0]).to(z)
-        min_encodings_block2.scatter_(1, min_encoding_indices_block2, 1)
+        # find closest encodings
+        if not lq:
+           min_encodings, min_encoding_indices = self.get_min_encoddings(d, k, z, codebook)
+           
+           #min_encoding_indices = torch.argmin(d, dim=1).unsqueeze(1)
+           #min_encodings = torch.zeros(min_encoding_indices.shape[0], codebook.shape[0]).to(z)
+           #min_encodings.scatter_(1, min_encoding_indices, 1)
 
-        z_q_block1 = torch.matmul(min_encodings_block1, codebook_block1)
-        z_q_block1 = z_q_block1.view(z.shape)
+           # find closest encodings block1
+           min_encodings_block1, min_encoding_indices_block1 = self.get_min_encoddings(d_block1, k, z_block1, codebook_block1)
 
-        z_q_block2 = torch.matmul(min_encodings_block2, codebook_block2)
-        z_q_block2 = z_q_block2.view(z.shape)
+           #min_encoding_indices_block1 = torch.argmin(d_block1, dim=1).unsqueeze(1)
+           #min_encodings_block1 = torch.zeros(min_encoding_indices_block1.shape[0], codebook_block1.shape[0]).to(z)
+           #min_encodings_block1.scatter_(1, min_encoding_indices_block1, 1)
+
+           # find closest encodings block2
+           min_encodings_block2, min_encoding_indices_block2 = self.get_min_encoddings(d_block2, k, z_block2, codebook_block2)
+
+           #min_encoding_indices_block2 = torch.argmin(d_block2, dim=1).unsqueeze(1)
+           #min_encodings_block2 = torch.zeros(min_encoding_indices_block2.shape[0], codebook_block2.shape[0]).to(z)
+           #min_encodings_block2.scatter_(1, min_encoding_indices_block2, 1)
+        else:
+           min_encodings = self.get_min_encoddings(d, k, z, codebook)
+           min_encodings_block1 = self.get_min_encoddings(d_block1, k, z, codebook_block1)
+           min_encodings_block2 = self.get_min_encoddings(d_block2, k, z, codebook_block2)
+
 
         if gt_indices is not None:
             gt_indices_z = gt_indices[0].reshape(-1)
             gt_indices_z_block1 = gt_indices[1].reshape(-1)
             gt_indices_z_block2 = gt_indices[2].reshape(-1)
+            
+            gt_min_indices_z = gt_indices_z[:,None]
 
-            gt_min_indices_z = gt_indices_z.reshape_as(min_encoding_indices)
             gt_min_onehot_z = torch.zeros(gt_min_indices_z.shape[0], codebook.shape[0]).to(z)
             gt_min_onehot_z.scatter_(1, gt_min_indices_z, 1)
 
-            gt_min_indices_z_block1 = gt_indices_z_block1.reshape_as(min_encoding_indices)
+            gt_min_indices_z_block1 = gt_indices_z_block1[:,None]
             gt_min_onehot_z_block1 = torch.zeros(gt_min_indices_z_block1.shape[0], codebook.shape[0]).to(z)
             gt_min_onehot_z_block1.scatter_(1, gt_min_indices_z_block1, 1)
 
-            gt_min_indices_z_block2 = gt_indices_z_block2.reshape_as(min_encoding_indices)
+            gt_min_indices_z_block2 = gt_indices_z_block2[:,None]
             gt_min_onehot_z_block2 = torch.zeros(gt_min_indices_z_block2.shape[0], codebook.shape[0]).to(z)
             gt_min_onehot_z_block2.scatter_(1, gt_min_indices_z_block2, 1)
 
@@ -140,7 +221,20 @@ class VectorQuantizer(nn.Module):
 
         # get quantized latent vectors
         z_q = torch.matmul(min_encodings, codebook)
+        z_q_block1 = torch.matmul(min_encodings_block1, codebook_block1)
+        z_q_block2 = torch.matmul(min_encodings_block2, codebook_block2)
+        #if lq:
+        #   z_q = (z_q * w).sum(0)
+        #   z_q_block1 = (z_q_block1 * w1).sum(0)
+        #   z_q_block2 = (z_q_block2 * w2).sum(0)
+       
+        z_q = (z_q * w).sum(0)
+        z_q_block1 = (z_q_block1 * w1).sum(0)
+        z_q_block2 = (z_q_block2 * w2).sum(0)
+
         z_q = z_q.view(z.shape)
+        z_q_block1 = z_q_block1.view(z.shape)
+        z_q_block2 = z_q_block2.view(z.shape)
 
         z_q += z_q_block1 + z_q_block2
         if gt_indices is None:
@@ -165,11 +259,19 @@ class VectorQuantizer(nn.Module):
         # reshape back to match original input shape
         z_q = z_q.permute(0, 3, 1, 2).contiguous()
 
-        z_q_indexes = min_encoding_indices.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+        
+        if not lq:
+           z_q_indexes = min_encoding_indices.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+           z_q_block1_indexes = min_encoding_indices_block1.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+           z_q_block2_indexes = min_encoding_indices_block2.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+        else:
+           z_q_indexes = None
+           z_q_block1_indexes = None
+           z_q_block2_indexes = None
 
         if gt_indices is None:
-            z_q_block1_indexes = min_encoding_indices_block1.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
-            z_q_block2_indexes = min_encoding_indices_block2.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+            #z_q_block1_indexes = min_encoding_indices_block1.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+            #z_q_block2_indexes = min_encoding_indices_block2.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
             return z_q, codebook_loss, [z_q_indexes, z_q_block1_indexes, z_q_block2_indexes]
         else:
             return z_q, codebook_loss, [z_q_indexes]
@@ -207,6 +309,7 @@ class SwinLayers(nn.Module):
         return x
 
 
+
 class MultiScaleEncoder(nn.Module):
     def __init__(self,
                  in_channel,
@@ -223,6 +326,7 @@ class MultiScaleEncoder(nn.Module):
         ksz = 3
 
         self.in_conv = nn.Conv2d(in_channel, channel_query_dict[input_res], 4, padding=1)
+        
 
         self.blocks = nn.ModuleList()
         self.up_blocks = nn.ModuleList()
@@ -259,7 +363,6 @@ class MultiScaleEncoder(nn.Module):
     def forward(self, input):
         outputs = []
         x = self.in_conv(input)
-
         for idx, m in enumerate(self.blocks):
             x = m(x)
             outputs.append(x)
@@ -285,6 +388,52 @@ class DecoderBlock(nn.Module):
     def forward(self, input):
         return self.block(input)
 
+
+class MaskedSelection(nn.Module):
+    def __init__(self, k):
+        super().__init__()
+        self.k = k
+        self.e_dim = 512
+
+        self.maskConv = nn.Conv2d(self.e_dim, 2*self.k, 1)
+        self.attnConv = nn.Conv2d(self.e_dim, self.k, 1)
+
+        self.maskConv1 = nn.Conv2d(self.e_dim, 2*self.k, 1)
+        self.attnConv1 = nn.Conv2d(self.e_dim, self.k, 1)
+
+        self.maskConv2 = nn.Conv2d(self.e_dim, 2*self.k, 1)
+        self.attnConv2 = nn.Conv2d(self.e_dim, self.k, 1)
+
+
+    def forward(self, book_no, z, lq_train, tau=0.1):
+        k = self.k
+        if book_no==0:
+            gumbel_logits = self.maskConv(z)
+            attn = self.attnConv(z).reshape(-1, k)
+        elif book_no==1:
+            gumbel_logits = self.maskConv1(z)
+            attn = self.attnConv1(z).reshape(-1, k)
+        elif book_no==2:
+            gumbel_logits = self.maskConv2(z)
+            attn = self.attnConv2(z).reshape(-1, k)
+
+        gumbel_logits = gumbel_logits.permute(0,2,3,1)
+        gumbel_logits = gumbel_logits.view(z.shape[0],z.shape[2],z.shape[3], k, 2)
+        if lq_train:
+            mask = F.gumbel_softmax(gumbel_logits, tau=tau, hard=False, dim=-1)[:,:,:,:,0]
+        else:
+            mask = F.gumbel_softmax(gumbel_logits, tau=tau, hard=True, dim=-1)[:,:,:,:,0]
+        mask = mask.reshape(-1, k)
+
+        #print(1, self.maskConv.weight.data.sum())
+        #print(2, self.maskConv1.weight.data.sum())
+        #print(3, self.maskConv2.weight.data.sum())
+
+        #w = (torch.exp(attn) * mask)/(torch.exp(attn) * mask).sum(1)[:, None]
+        #w = w.permute(1,0)[:,:,None]
+        w = mask/mask.sum(1)[:,None]
+        w = mask.permute(1,0)[:,:,None]
+        return w
 
 @ARCH_REGISTRY.register()
 class FeMaSRNet(nn.Module):
@@ -337,6 +486,7 @@ class FeMaSRNet(nn.Module):
                                 norm_type, act_type, LQ_stage
                             )
 
+        # self.maskedSelection = MaskedSelection(4)
 
         # build decoder
         self.decoder_group = nn.ModuleList()
@@ -390,7 +540,7 @@ class FeMaSRNet(nn.Module):
             self.vgg_feat_layer = 'relu4_4'
             self.vgg_feat_extractor = VGGFeatureExtractor([self.vgg_feat_layer]) 
 
-    def encode_and_decode(self, input, gt_indices=None, current_iter=None):
+    def encode_and_decode(self, input, gt_indices=None, current_iter=None, tau=5):
         enc_feats = self.multiscale_encoder(input.detach())
         if self.LQ_stage:
             enc_feats = enc_feats[-3:]
@@ -409,6 +559,7 @@ class FeMaSRNet(nn.Module):
         prev_dec_feat = None
         prev_quant_feat = None
         x = enc_feats[0]
+
         for i in range(self.max_depth):
             cur_res = self.gt_res // 2**self.max_depth * 2**i
             if cur_res in self.codebook_scale:  # needs to perform quantize
@@ -426,12 +577,17 @@ class FeMaSRNet(nn.Module):
                    feat_to_quant_block2 = self.before_quant_group_block2[quant_idx](enc_feats[i+1])
                 
                 if gt_indices is not None:
-                    z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant, gt_indices[quant_idx])
+                    # 2nd stage training
+                    #w = self.maskedSelection(0, feat_to_quant, True, tau=tau)
+                    #w1 = self.maskedSelection(1, feat_to_quant, True, tau=tau)
+                    #w2 = self.maskedSelection(2, feat_to_quant, True, tau=tau)
+                    z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant, gt_indices[quant_idx], tau=tau)
                 else:
                     if self.LQ_stage:
-                        z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant)
+                        # 2nd stage testing
+                        z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant, tau=tau)
                     else:
-                        z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant, z_block1=feat_to_quant_block1, z_block2=feat_to_quant_block2)
+                        z_quant, codebook_loss, indices = self.quantize_group[quant_idx](feat_to_quant, z_block1=feat_to_quant_block1, z_block2=feat_to_quant_block2, tau=tau)
 
                 if self.use_semantic_loss:
                     semantic_z_quant = self.conv_semantic(z_quant)
@@ -559,13 +715,13 @@ class FeMaSRNet(nn.Module):
         self.use_semantic_loss = org_use_semantic_loss 
         return output 
 
-    def forward(self, input, gt_indices=None):
+    def forward(self, input, gt_indices=None, tau=5):
 
         if gt_indices is not None:
             # in LQ training stage, need to pass GT indices for supervise.
-            dec, codebook_loss, semantic_loss, indices = self.encode_and_decode(input, gt_indices)
+            dec, codebook_loss, semantic_loss, indices = self.encode_and_decode(input, gt_indices, tau=tau)
         else:
             # in HQ stage, or LQ test stage, no GT indices needed.
-            dec, codebook_loss, semantic_loss, indices = self.encode_and_decode(input)
+            dec, codebook_loss, semantic_loss, indices = self.encode_and_decode(input, tau=tau)
 
         return dec, codebook_loss, semantic_loss, indices
