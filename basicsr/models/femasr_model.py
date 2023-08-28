@@ -53,8 +53,7 @@ class FeMaSRModel(BaseModel):
                         if fkw in name:
                             for pname, p in module.named_parameters():
                                 if ('maskConv' in pname) or ('attnConv' in pname):
-                                    print("************", pname, "****************")
-                                    p.requires_grad = True
+                                    p.requires_grad = False
                                 else:
                                     p.requires_grad = False
                             break
@@ -117,8 +116,8 @@ class FeMaSRModel(BaseModel):
         optim_params = []
 
         for k, v in self.net_g.named_parameters():
-            if (('attnConv' in k) or ('maskConv' in k)):
-                v.requires_grad = True
+            #if (('attnConv' in k) or ('maskConv' in k)):
+            #    v.requires_grad = True
             optim_params.append(v)
             if not v.requires_grad:
                 logger = get_root_logger()
@@ -155,7 +154,6 @@ class FeMaSRModel(BaseModel):
         if self.LQ_stage:
             with torch.no_grad():
                 self.gt_rec, _, _, gt_indices = self.net_hq(self.gt)
-
             #for p in self.net_g.named_parameters():
 
             #print("*********** self.LQ_stage ********")
@@ -298,14 +296,18 @@ class FeMaSRModel(BaseModel):
                 if save_as_dir:
                     save_as_img_path = osp.join(save_as_dir, f'{img_name}.png')
                     imwrite(sr_img, save_as_img_path)
+                
                 imwrite(sr_img, save_img_path)
 
             if with_metrics:
                 # calculate metrics
                 for name, opt_ in self.opt['val']['metrics'].items():                    
                     tmp_result = self.metric_funcs[name](*metric_data)
+                    #if name=='ssim':
+                    #   print(save_img_path, tmp_result)
                     self.metric_results[name] += tmp_result.item() 
 
+                #print(save_img_path, self.metric_funcs['psnr'](*metric_data))
             pbar.update(1)
             pbar.set_description(f'Test {img_name}')
 

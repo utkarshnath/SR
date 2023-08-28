@@ -38,14 +38,15 @@ class VectorQuantizer(nn.Module):
         self.embedding = nn.Embedding(self.n_e, self.e_dim)
         self.embedding.weight.data.uniform_(-1.0 / self.n_e, 1.0 / self.n_e)
 
-        self.k = 1
-        self.maskConv = nn.Conv2d(self.e_dim, 2*self.k, 1)
+        self.k = 4
+        factor = 1 + self.k
+        self.maskConv = nn.Conv2d(self.e_dim * factor, 2*self.k, 1)
         #self.attnConv = nn.Conv2d(self.e_dim, self.k, 1)
 
-        self.maskConv1 = nn.Conv2d(self.e_dim, 2*self.k, 1)
+        self.maskConv1 = nn.Conv2d(self.e_dim * factor, 2*self.k, 1)
         #self.attnConv1 = nn.Conv2d(self.e_dim, self.k, 1)
 
-        self.maskConv2 = nn.Conv2d(self.e_dim, 2*self.k, 1)
+        self.maskConv2 = nn.Conv2d(self.e_dim * factor, 2*self.k, 1)
         #self.attnConv2 = nn.Conv2d(self.e_dim, self.k, 1)
 
     def dist(self, x, y):
@@ -74,15 +75,29 @@ class VectorQuantizer(nn.Module):
         return min_encodings, min_encoding_indices
    
 
-    def get_code_weights(self, book_no, z, k, lq_train, tau=0.1):
+    def get_code_weights(self, book_no, z, z_q, k, lq_train, tau=0.1):
+        if self.k==1:
+            z_q = z_q.reshape(z.shape)
+        elif(self.k==4):
+            z_q_0 = z_q[0].reshape(z.shape).permute(0, 3, 1, 2)
+            z_q_1 = z_q[1].reshape(z.shape).permute(0, 3, 1, 2)
+            z_q_2 = z_q[2].reshape(z.shape).permute(0, 3, 1, 2)
+            z_q_3 = z_q[3].reshape(z.shape).permute(0, 3, 1, 2)
+
+        z = z.permute(0, 3, 1, 2)
+        if self.k==1:
+            z_combined = torch.cat((z, z_q))
+        else:
+            z_combined = torch.cat((z, z_q_0, z_q_1, z_q_2, z_q_3), 1)
+
         if book_no==0:
-            gumbel_logits = self.maskConv(z)
+            gumbel_logits = self.maskConv(z_combined)
             #attn = self.attnConv(z).reshape(-1, k)
         elif book_no==1:
-            gumbel_logits = self.maskConv1(z)
+            gumbel_logits = self.maskConv1(z_combined)
             #attn = self.attnConv1(z).reshape(-1, k)
         elif book_no==2:
-            gumbel_logits = self.maskConv2(z)
+            gumbel_logits = self.maskConv2(z_combined)
             #attn = self.attnConv2(z).reshape(-1, k)
 
         gumbel_logits = gumbel_logits.permute(0,2,3,1)
@@ -108,8 +123,96 @@ class VectorQuantizer(nn.Module):
         #print("w", w.shape)
         #print(w[:,:10])
         return w
-    
 
+    def get_quantized_z(self, gt_indices, z, codebook, w):
+        gt_indices_z = gt_indices[:,0,:,:].reshape(-1)
+        gt_min_indices_z = gt_indices_z[:,None]
+        gt_min_onehot_z = torch.zeros(gt_min_indices_z.shape[0], codebook.shape[0]).to(z)
+        gt_min_onehot_z.scatter_(1, gt_min_indices_z, 1)
+        z_q_gt = torch.matmul(gt_min_onehot_z, codebook)
+        z_q_gt = z_q_gt * w[0]
+        z_q_gt0 = z_q_gt.view(z.shape)
+
+        gt_indices_z = gt_indices[:,1,:,:].reshape(-1)
+        gt_min_indices_z = gt_indices_z[:,None]
+        gt_min_onehot_z = torch.zeros(gt_min_indices_z.shape[0], codebook.shape[0]).to(z)
+        gt_min_onehot_z.scatter_(1, gt_min_indices_z, 1)
+        z_q_gt = torch.matmul(gt_min_onehot_z, codebook)
+        z_q_gt = z_q_gt * w[1]
+        z_q_gt1 = z_q_gt.view(z.shape)
+
+        gt_indices_z = gt_indices[:,2,:,:].reshape(-1)
+        gt_min_indices_z = gt_indices_z[:,None]
+        gt_min_onehot_z = torch.zeros(gt_min_indices_z.shape[0], codebook.shape[0]).to(z)
+        gt_min_onehot_z.scatter_(1, gt_min_indices_z, 1)
+        z_q_gt = torch.matmul(gt_min_onehot_z, codebook)
+        z_q_gt = z_q_gt * w[2]
+        z_q_gt2 = z_q_gt.view(z.shape)
+
+        gt_indices_z = gt_indices[:,3,:,:].reshape(-1)
+        gt_min_indices_z = gt_indices_z[:,None]
+        gt_min_onehot_z = torch.zeros(gt_min_indices_z.shape[0], codebook.shape[0]).to(z)
+        gt_min_onehot_z.scatter_(1, gt_min_indices_z, 1)
+        z_q_gt = torch.matmul(gt_min_onehot_z, codebook)
+        z_q_gt = z_q_gt * w[3]
+        z_q_gt3 = z_q_gt.view(z.shape)
+
+        
+        return z_q_gt0 + z_q_gt1 + z_q_gt2 + z_q_gt3
+    '''
+    def forward(self, z, gt_indices=None, current_iter=None, z_block1=None, z_block2=None, tau=5):
+        """
+        Args:
+            z: input features to be quantized, z (continuous) -> z_q (discrete)
+               z.shape = (batch, channel, height, width)
+            gt_indices: feature map of given indices, used for visualization. 
+        """
+        # reshape z -> (batch, height, width, channel) and flatten
+        z = z.permute(0, 2, 3, 1).contiguous()
+        z_flattened = z.view(-1, self.e_dim)
+
+        codebook = self.embedding.weight
+
+        d = self.dist(z_flattened, codebook)
+        
+        # find closest encodings
+        min_encoding_indices = torch.argmin(d, dim=1).unsqueeze(1)
+        min_encodings = torch.zeros(min_encoding_indices.shape[0], codebook.shape[0]).to(z)
+        min_encodings.scatter_(1, min_encoding_indices, 1)
+
+        if gt_indices is not None:
+            gt_indices = gt_indices.reshape(-1)
+
+            gt_min_indices = gt_indices.reshape_as(min_encoding_indices)
+            gt_min_onehot = torch.zeros(gt_min_indices.shape[0], codebook.shape[0]).to(z)
+            gt_min_onehot.scatter_(1, gt_min_indices, 1)
+
+            z_q_gt = torch.matmul(gt_min_onehot, codebook)
+            z_q_gt = z_q_gt.view(z.shape)
+
+        # get quantized latent vectors
+        z_q = torch.matmul(min_encodings, codebook)
+        z_q = z_q.view(z.shape)
+
+        e_latent_loss = torch.mean((z_q.detach() - z)**2)
+        q_latent_loss = torch.mean((z_q - z.detach())**2)
+
+        if self.LQ_stage and gt_indices is not None:
+            codebook_loss = self.beta * ((z_q_gt.detach() - z) ** 2).mean() 
+            texture_loss = self.gram_loss(z, z_q_gt.detach()) 
+            codebook_loss = codebook_loss + texture_loss 
+        else:
+            codebook_loss = q_latent_loss + e_latent_loss * self.beta
+
+        # preserve gradients
+        z_q = z + (z_q - z).detach()
+
+        # reshape back to match original input shape
+        z_q = z_q.permute(0, 3, 1, 2).contiguous()
+
+        return z_q, codebook_loss, min_encoding_indices.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+
+    '''
     def forward(self, z, gt_indices=None, current_iter=None, z_block1=None, z_block2=None, tau=5):
         # HQ -> gt_indices==None z_block1!=None
         # LQ training -> gt_indices!=None
@@ -124,15 +227,6 @@ class VectorQuantizer(nn.Module):
         # reshape z -> (batch, height, width, channel) and flatten
         lq_train = gt_indices!=None
         lq = (gt_indices!=None) or (z_block1==None)
-        if lq:
-            w = self.get_code_weights(0, z, k, lq_train, tau=tau)
-            w1 = self.get_code_weights(1, z, k, lq_train, tau=tau)
-            w2 = self.get_code_weights(2, z, k, lq_train, tau=tau)
-        else:
-            w = self.get_code_weights(0, z, k, lq_train, tau=tau)
-            w1 = self.get_code_weights(1, z_block1, k, lq_train, tau=tau)
-            w2 = self.get_code_weights(2, z_block2, k, lq_train, tau=tau)
-
         
         z = z.permute(0, 2, 3, 1).contiguous()
         z_flattened = z.view(-1, self.e_dim)
@@ -184,16 +278,51 @@ class VectorQuantizer(nn.Module):
            #min_encodings_block2 = torch.zeros(min_encoding_indices_block2.shape[0], codebook_block2.shape[0]).to(z)
            #min_encodings_block2.scatter_(1, min_encoding_indices_block2, 1)
         else:
-           min_encodings = self.get_min_encoddings(d, k, z, codebook)
-           min_encodings_block1 = self.get_min_encoddings(d_block1, k, z, codebook_block1)
-           min_encodings_block2 = self.get_min_encoddings(d_block2, k, z, codebook_block2)
+           min_encodings,_ = self.get_min_encoddings(d, k, z, codebook)
+           min_encodings_block1,_ = self.get_min_encoddings(d_block1, k, z, codebook_block1)
+           min_encodings_block2,_ = self.get_min_encoddings(d_block2, k, z, codebook_block2)
 
+
+        # get quantized latent vectors
+        z_q = torch.matmul(min_encodings, codebook)
+        z_q_block1 = torch.matmul(min_encodings_block1, codebook_block1)
+        z_q_block2 = torch.matmul(min_encodings_block2, codebook_block2)
+        #if lq:
+        #   z_q = (z_q * w).sum(0)
+        #   z_q_block1 = (z_q_block1 * w1).sum(0)
+        #   z_q_block2 = (z_q_block2 * w2).sum(0)
+
+        if lq:
+            w = self.get_code_weights(0, z, z_q, k, lq_train, tau=tau)
+            w1 = self.get_code_weights(1, z, z_q_block1, k, lq_train, tau=tau)
+            w2 = self.get_code_weights(2, z, z_q_block2, k, lq_train, tau=tau)
+        else:
+            w = self.get_code_weights(0, z, z_q, k, lq_train, tau=tau)
+            w1 = self.get_code_weights(1, z_block1, z_q_block1, k, lq_train, tau=tau)
+            w2 = self.get_code_weights(2, z_block2, z_q_block2, k, lq_train, tau=tau)
+
+
+        z_q = (z_q * w).sum(0)
+        z_q_block1 = (z_q_block1 * w1).sum(0)
+        z_q_block2 = (z_q_block2 * w2).sum(0)
+
+        z_q = z_q.view(z.shape)
+        z_q_block1 = z_q_block1.view(z.shape)
+        z_q_block2 = z_q_block2.view(z.shape)
+
+        z_q += z_q_block1 + z_q_block2
 
         if gt_indices is not None:
+
+            z_q_gt = self.get_quantized_z(gt_indices[0], z, codebook, w)
+            z_q_gt_block1 = self.get_quantized_z(gt_indices[1], z, codebook_block1, w)
+            z_q_gt_block2 = self.get_quantized_z(gt_indices[2], z, codebook_block2, w)
+
+            '''
             gt_indices_z = gt_indices[0].reshape(-1)
             gt_indices_z_block1 = gt_indices[1].reshape(-1)
             gt_indices_z_block2 = gt_indices[2].reshape(-1)
-            
+           
             gt_min_indices_z = gt_indices_z[:,None]
 
             gt_min_onehot_z = torch.zeros(gt_min_indices_z.shape[0], codebook.shape[0]).to(z)
@@ -215,28 +344,9 @@ class VectorQuantizer(nn.Module):
 
             z_q_gt_block2 = torch.matmul(gt_min_onehot_z_block2, codebook_block2)
             z_q_gt_block2 = z_q_gt_block2.view(z.shape)
+            '''
+            z_q_gt += z_q_gt_block1 + z_q_gt_block2
 
-            z_q_gt += z_q_gt_block1 + z_q_gt_block2 
-
-
-        # get quantized latent vectors
-        z_q = torch.matmul(min_encodings, codebook)
-        z_q_block1 = torch.matmul(min_encodings_block1, codebook_block1)
-        z_q_block2 = torch.matmul(min_encodings_block2, codebook_block2)
-        #if lq:
-        #   z_q = (z_q * w).sum(0)
-        #   z_q_block1 = (z_q_block1 * w1).sum(0)
-        #   z_q_block2 = (z_q_block2 * w2).sum(0)
-       
-        z_q = (z_q * w).sum(0)
-        z_q_block1 = (z_q_block1 * w1).sum(0)
-        z_q_block2 = (z_q_block2 * w2).sum(0)
-
-        z_q = z_q.view(z.shape)
-        z_q_block1 = z_q_block1.view(z.shape)
-        z_q_block2 = z_q_block2.view(z.shape)
-
-        z_q += z_q_block1 + z_q_block2
         if gt_indices is None:
            #z_q += z_q_block1 + z_q_block2
            if z_block1 is not None:
@@ -261,9 +371,9 @@ class VectorQuantizer(nn.Module):
 
         
         if not lq:
-           z_q_indexes = min_encoding_indices.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
-           z_q_block1_indexes = min_encoding_indices_block1.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
-           z_q_block2_indexes = min_encoding_indices_block2.reshape(z_q.shape[0], 1, z_q.shape[2], z_q.shape[3])
+           z_q_indexes = min_encoding_indices.reshape(z_q.shape[0], k, z_q.shape[2], z_q.shape[3])
+           z_q_block1_indexes = min_encoding_indices_block1.reshape(z_q.shape[0], k, z_q.shape[2], z_q.shape[3])
+           z_q_block2_indexes = min_encoding_indices_block2.reshape(z_q.shape[0], k, z_q.shape[2], z_q.shape[3])
         else:
            z_q_indexes = None
            z_q_block1_indexes = None
@@ -275,7 +385,7 @@ class VectorQuantizer(nn.Module):
             return z_q, codebook_loss, [z_q_indexes, z_q_block1_indexes, z_q_block2_indexes]
         else:
             return z_q, codebook_loss, [z_q_indexes]
-    
+        
     def get_codebook_entry(self, indices):
         b, _, h, w = indices.shape
 

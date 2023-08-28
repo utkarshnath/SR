@@ -51,8 +51,10 @@ def main():
     else:
         weight_path = args.w
    
-    weight_path = "/scratch/vgunda8/FeMaSR/stage2/experiments/015_FeMaSR_LQ_stage/models/net_g_latest.pth"
-
+    # weight_path = "/scratch/vgunda8/FeMaSR/stage2/experiments/015_FeMaSR_LQ_stage/models/net_g_latest.pth"
+    weight_path = "/scratch/vgunda8/FeMaSR/stage2/experiments/019_FeMaSR_LQ_stage_Hir_Codebook_with_Match_Selection_k1_attn_fixed/models/net_g_best_.pth"
+    weight_path = "/scratch/vgunda8/FeMaSR/stage2/experiments/015_FeMaSR_LQ_stage/models/net_g_best_.pth"
+    weight_path = "/scratch/vgunda8/FeMaSR/stage2/experiments/019_FeMaSR_LQ_stage_Hir_Codebook_with_Match_Selection_k1_attn_fixed_v2/models/net_g_best_.pth"
     # set up the model
     sr_model = FeMaSRNet(codebook_params=[[32, 1024, 512]], LQ_stage=True, scale_factor=args.out_scale).to(device)
     sr_model.load_state_dict(torch.load(weight_path)['params'], strict=False)
@@ -83,9 +85,8 @@ def main():
     pbar.close()
     
     print("psnr", sum(psnr_all)/len(psnr_all))
-     
+    '''  
 
-    '''    
     pbar = tqdm(total=len(gt_paths), unit='image')
     for idx, (lr_path, gt_path) in enumerate(zip(lr_paths, gt_paths)):
         img_name = os.path.basename(lr_path)
@@ -96,13 +97,18 @@ def main():
         img_tensor = img_tensor.unsqueeze(0)
 
         max_size = args.max_size ** 2 
-        #print(img_tensor.shape)
+        
         h, w = img_tensor.shape[2:]
-        if h * w < max_size: 
-            output = sr_model.test(img_tensor)
-        else:
-            output = sr_model.test_tile(img_tensor)
+        with torch.no_grad():
+           if h * w < max_size: 
+              output = sr_model.test(img_tensor)
+           else:
+              output = sr_model.test_tile(img_tensor)
+        
         output_img = tensor2img(output)
+
+        save_path = os.path.join(args.output, f'{img_name}')
+        imwrite(output_img, save_path)
 
         img_gt = cv2.imread(gt_path, cv2.IMREAD_UNCHANGED).astype(np.float32) / 255.
         img_gt = img2tensor(img_gt, bgr2rgb=True, float32=True)
@@ -117,7 +123,10 @@ def main():
         #imwrite(output_img, save_path)
         pbar.update(1)
     pbar.close()
-    print(psnr_all)
+    for idx, (lr_path, psnr1) in enumerate(zip(lr_paths, psnr_all)):
+        img_name = os.path.basename(lr_path)
+        print(img_name, psnr1)
+
     print("psnr", sum(psnr_all)/len(psnr_all))
     
 
